@@ -542,7 +542,6 @@ export class PerpetualsClient {
     return await this.program.methods
       .getExitPriceAndFee({})
       .accounts({
-        signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
@@ -568,7 +567,6 @@ export class PerpetualsClient {
     return await this.program.methods
       .getLiquidationPrice({})
       .accounts({
-        signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
@@ -594,7 +592,6 @@ export class PerpetualsClient {
     return await this.program.methods
       .getLiquidationState({})
       .accounts({
-        signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
@@ -620,7 +617,6 @@ export class PerpetualsClient {
     return await this.program.methods
       .getPnl({})
       .accounts({
-        signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
@@ -648,7 +644,6 @@ export class PerpetualsClient {
         amountIn,
       })
       .accounts({
-        signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         receivingCustody: this.getCustodyKey(poolName, tokenMintIn),
@@ -673,7 +668,6 @@ export class PerpetualsClient {
     return await this.program.methods
       .get_assets_under_management({})
       .accounts({
-        signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
       })
