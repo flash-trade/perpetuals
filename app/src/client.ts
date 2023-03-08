@@ -476,7 +476,7 @@ export class PerpetualsClient {
         ema,
       })
       .accounts({
-        signer: this.provider.wallet.publicKey,
+        // signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
@@ -499,6 +499,12 @@ export class PerpetualsClient {
     size: typeof BN,
     side: PositionSide
   ) => {
+    console.log("perps: ", this.perpetuals.publicKey.toBase58())
+
+    console.log("poolKey: ", this.getPoolKey(poolName).toBase58())
+    console.log("custody key : ",this.getCustodyKey(poolName, tokenMint).toBase58());
+    console.log("orcalve: ",  (await this.getCustodyOracleAccountKey(poolName,tokenMint)).toBase58())
+
     return await this.program.methods
       .getEntryPriceAndFee({
         collateral,
@@ -506,11 +512,16 @@ export class PerpetualsClient {
         side: side === "long" ? { long: {} } : { short: {} },
       })
       .accounts({
-        signer: this.provider.wallet.publicKey,
+        // signer: this.provider.wallet.publicKey,
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
         custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        lockCustody: this.getCustodyKey(poolName, tokenMint),
+        lockCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),

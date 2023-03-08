@@ -433,6 +433,10 @@ async function getAum(poolName: string) {
     .requiredOption("-c, --collateral <bigint>", "Collateral")
     .requiredOption("-s, --size <bigint>", "Size")
     .action(async (poolName, tokenMint, side, options) => {
+      console.log("options.collateral:",options.collateral)
+      console.log("options.size:",options.size)
+      console.log("tokenMint:",tokenMint, poolName, side)
+
       await getEntryPriceAndFee(
         poolName,
         new PublicKey(tokenMint),
