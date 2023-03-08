@@ -98,6 +98,8 @@ Where `<POOL_NAME>` is a random name you want to assign to the pool, `<TOKEN_MIN
 ```
 npx ts-node src/cli.ts -k <ADMIN_WALLET> add-pool TestPool1
 npx ts-node src/cli.ts -k <ADMIN_WALLET> add-custody TestPool1 So11111111111111111111111111111111111111112 J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix false
+
+npx ts-node src/cli.ts -k /Users/aw/.config/solana/Beta-Hcik.json add-custody FlashPool1 Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr 5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7 true
 ```
 
 To validate added pools and custodies, run:
