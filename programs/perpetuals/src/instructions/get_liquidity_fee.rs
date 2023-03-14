@@ -1,8 +1,12 @@
 //! GetLiquidityFee instruction handler
 
 use {
-    crate::state::{custody::Custody},
+    crate::state::{
+        custody::Custody, oracle::OraclePrice, perpetuals::LiquidityFee, perpetuals::Perpetuals,
+        pool::Pool,
+    },
     anchor_lang::prelude::*,
+    anchor_spl::token::TokenAccount,
 };
 
 #[derive(Accounts)]
@@ -37,20 +41,27 @@ pub struct GetLiquidityFee<'info> {
     )]
     pub custody_token_account: Box<Account<'info, TokenAccount>>,
 
+    /// CHECK: oracle account for the collateral token
+    #[account(
+        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
+    )]
+    pub custody_oracle_account: AccountInfo<'info>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct GetLiquidityFeeParams {
-    amount: u64
+    amount: u64,
 }
 
 pub fn get_liquidity_fee(
     ctx: Context<GetLiquidityFee>,
-    params: &GetLiquidityFee,
+    params: &GetLiquidityFeeParams,
 ) -> Result<LiquidityFee> {
+    let perpetuals = ctx.accounts.perpetuals.as_mut();
     let pool = ctx.accounts.pool.as_mut();
     let custody = ctx.accounts.custody.as_mut();
     let token_id = pool.get_token_id(&custody.key())?;
+    let curtime = perpetuals.get_time()?;
 
     let token_price = OraclePrice::new_from_oracle(
         custody.oracle.oracle_type,
@@ -61,19 +72,14 @@ pub fn get_liquidity_fee(
         false,
     )?;
 
-    let add_liquidity_fee = pool.get_add_liquidity_fee(
-        token_id,
-        params.amount,
-        custody,
-        &token_price,
-    );
+    let add_liquidity_fee =
+        pool.get_add_liquidity_fee(token_id, params.amount, custody, &token_price)?;
 
-    let remove_liquidity_fee = pool.get_remove_liquidity_fee(
-        token_id,
-        params.amount,
-        custody,
-        &token_price
-    );
+    let remove_liquidity_fee =
+        pool.get_remove_liquidity_fee(token_id, params.amount, custody, &token_price)?;
 
-    Ok(LiquidityFee { add_liquidity_fee, remove_liquidity_fee })
+    Ok(LiquidityFee {
+        add_liquidity_fee,
+        remove_liquidity_fee,
+    })
 }
