@@ -210,7 +210,7 @@ export class PerpetualsClient {
     let positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 152 }, { memcmp: { bytes: data, offset: 0 } }],
+        filters: [{ dataSize: 200 }, { memcmp: { bytes: data, offset: 0 } }],
       }
     );
     return Promise.all(
@@ -222,11 +222,14 @@ export class PerpetualsClient {
 
   getPoolTokenPositions = async (poolName: string, tokenMint: PublicKey) => {
     let poolKey = this.getPoolKey(poolName);
-    let data = encode(Buffer.concat([poolKey.toBuffer(), Buffer.from([0])]));
+    let custodyKey = this.getCustodyKey(poolName, tokenMint);
+    let data = encode(
+      Buffer.concat([poolKey.toBuffer(), custodyKey.toBuffer()])
+    );
     let positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 152 }, { memcmp: { bytes: data, offset: 40 } }],
+        filters: [{ dataSize: 200 }, { memcmp: { bytes: data, offset: 40 } }],
       }
     );
     return Promise.all(
@@ -508,6 +511,60 @@ export class PerpetualsClient {
           tokenMint
         ),
       })
+      .view()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  getAddLiquidityAmountAndFee = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    amount: typeof BN
+  ) => {
+    return await this.program.methods
+      .getAddLiquidityAmountAndFee({
+        amountIn: amount,
+      })
+      .accounts({
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        lpTokenMint: this.getPoolLpTokenKey(poolName),
+      })
+      .remainingAccounts(await this.getCustodyMetas(poolName))
+      .view()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  getRemoveLiquidityAmountAndFee = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    lpAmount: typeof BN
+  ) => {
+    return await this.program.methods
+      .getRemoveLiquidityAmountAndFee({
+        lpAmountIn: lpAmount,
+      })
+      .accounts({
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        lpTokenMint: this.getPoolLpTokenKey(poolName),
+      })
+      .remainingAccounts(await this.getCustodyMetas(poolName))
       .view()
       .catch((err) => {
         console.error(err);

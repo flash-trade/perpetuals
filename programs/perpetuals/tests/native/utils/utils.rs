@@ -1,11 +1,10 @@
-use perpetuals::state::custody::BorrowRateParams;
-
 use {
     super::{fixtures, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
+    perpetuals::state::custody::BorrowRateParams,
     perpetuals::{
         instructions::{
             AddCustodyParams, AddLiquidityParams, SetCustodyConfigParams, SetTestOraclePriceParams,
@@ -322,7 +321,8 @@ pub async fn setup_pool_with_custodies_and_liquidity(
                 &pool_pda,
                 &params.setup_custody_params.mint,
                 AddLiquidityParams {
-                    amount: params.liquidity_amount,
+                    amount_in: params.liquidity_amount,
+                    min_lp_amount_out: 1,
                 },
             )
             .await

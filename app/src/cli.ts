@@ -77,8 +77,12 @@ async function addCustody(
     tradeSpreadShort: new BN(100),
     swapSpread: new BN(200),
     minInitialLeverage: new BN(10000),
+    maxInitialLeverage: new BN(1000000),
     maxLeverage: new BN(1000000),
     maxPayoffMult: new BN(10000),
+    maxUtilization: new BN(10000),
+    maxPositionLockedUsd: new BN(1000000000),
+    maxTotalLockedUsd: new BN(0),
   };
   let permissions = {
     allowSwap: true,
@@ -158,8 +162,32 @@ async function getUserPositions(wallet: PublicKey) {
   client.prettyPrint(await client.getUserPositions(wallet));
 }
 
+async function getPoolTokenPositions(poolName: string, tokenMint: PublicKey) {
+  client.prettyPrint(await client.getPoolTokenPositions(poolName, tokenMint));
+}
+
 async function getAllPositions() {
   client.prettyPrint(await client.getAllPositions());
+}
+
+async function getAddLiquidityAmountAndFee(
+  poolName: string,
+  tokenMint: PublicKey,
+  amount: BN
+) {
+  client.prettyPrint(
+    await client.getAddLiquidityAmountAndFee(poolName, tokenMint, amount)
+  );
+}
+
+async function getRemoveLiquidityAmountAndFee(
+  poolName: string,
+  tokenMint: PublicKey,
+  lpAmount: BN
+) {
+  client.prettyPrint(
+    await client.getRemoveLiquidityAmountAndFee(poolName, tokenMint, lpAmount)
+  );
 }
 
 async function getEntryPriceAndFee(
@@ -418,10 +446,47 @@ async function getAum(poolName: string) {
     });
 
   program
+    .command("get-pool-token-positions")
+    .description("Print positions in the token")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .action(async (poolName, tokenMint) => {
+      await getPoolTokenPositions(poolName, new PublicKey(tokenMint));
+    });
+
+  program
     .command("get-all-positions")
     .description("Print all open positions")
     .action(async () => {
       await getAllPositions();
+    });
+
+  program
+    .command("get-add-liquidity-amount-and-fee")
+    .description("Compute LP amount returned and fee for add liquidity")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .requiredOption("-a, --amount <bigint>", "Token amount")
+    .action(async (poolName, tokenMint, options) => {
+      await getAddLiquidityAmountAndFee(
+        poolName,
+        new PublicKey(tokenMint),
+        new BN(options.amount)
+      );
+    });
+
+  program
+    .command("get-remove-liquidity-amount-and-fee")
+    .description("Compute token amount returned and fee for remove liquidity")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .requiredOption("-a, --amount <bigint>", "LP token amount")
+    .action(async (poolName, tokenMint, options) => {
+      await getRemoveLiquidityAmountAndFee(
+        poolName,
+        new PublicKey(tokenMint),
+        new BN(options.amount)
+      );
     });
 
   program
