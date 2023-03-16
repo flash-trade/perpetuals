@@ -30,12 +30,6 @@ pub struct ProfitAndLoss {
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
-pub struct LiquidityFee {
-    pub add_liquidity_fee: u64,
-    pub remove_liquidity_fee: u64,
-}
-
-#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct Permissions {
     pub allow_swap: bool,
     pub allow_add_liquidity: bool,
