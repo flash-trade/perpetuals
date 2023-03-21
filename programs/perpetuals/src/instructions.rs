@@ -1,5 +1,7 @@
 // admin instructions
 pub mod add_custody;
+pub mod testing_edit_custody;
+
 pub mod add_pool;
 pub mod init;
 pub mod remove_custody;
@@ -38,6 +40,8 @@ pub mod swap;
 
 // bring everything in scope
 pub use add_custody::*;
+pub use testing_edit_custody::*;
+
 pub use add_pool::*;
 pub use init::*;
 pub use remove_custody::*;

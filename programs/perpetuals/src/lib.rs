@@ -56,6 +56,13 @@ pub mod perpetuals {
         instructions::add_custody(ctx, &params)
     }
 
+    pub fn testing_edit_custody<'info>(
+        ctx: Context<'_, '_, '_, 'info, TestingEditCustody<'info>>,
+        params: EditCustodyParams,
+    ) -> Result<u8> {
+        instructions::testing_edit_custody(ctx, &params)
+    }
+
     pub fn remove_custody<'info>(
         ctx: Context<'_, '_, '_, 'info, RemoveCustody<'info>>,
         params: RemoveCustodyParams,

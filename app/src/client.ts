@@ -47,6 +47,7 @@ export class PerpetualsClient {
     this.provider = AnchorProvider.local(clusterUrl, {
       commitment: "confirmed",
       preflightCommitment: "confirmed",
+      skipPreflight: true
     });
     setProvider(this.provider);
     this.program = workspace.Perpetuals as Program<Perpetuals>;
@@ -90,6 +91,7 @@ export class PerpetualsClient {
   };
 
   getPool = async (name: string) => {
+    console.log("pool:",this.getPoolKey(name).toBase58())
     return this.program.account.pool.fetch(this.getPoolKey(name));
   };
 
@@ -133,6 +135,7 @@ export class PerpetualsClient {
   };
 
   getCustody = async (poolName: string, tokenMint: PublicKey) => {
+    console.log("custody key :",this.getCustodyKey(poolName, tokenMint).toBase58());
     return this.program.account.custody.fetch(
       this.getCustodyKey(poolName, tokenMint)
     );
@@ -377,7 +380,10 @@ export class PerpetualsClient {
     borrowRate,
     ratios
   ) => {
-    await this.program.methods
+    console.log("CustodyKey",  this.getCustodyKey(poolName, tokenMint).toBase58())
+    console.log("getCustodyTokenAccountKey",  this.getCustodyTokenAccountKey(poolName, tokenMint).toBase58())
+    
+    const trx_id =  await this.program.methods
       .addCustody({
         isStable,
         oracle: oracleConfig,
@@ -411,6 +417,60 @@ export class PerpetualsClient {
         console.error(err);
         throw err;
       });
+
+      console.log("trx_id:", `https://explorer.solana.com/tx/${trx_id}?cluster=devnet`)
+
+  };
+
+  editCustody = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    isStable: boolean,
+    oracleConfig,
+    pricingConfig,
+    permissions,
+    fees,
+    borrowRate,
+    ratios
+  ) => {
+    console.log("CustodyKey",  this.getCustodyKey(poolName, tokenMint).toBase58())
+    console.log("getCustodyTokenAccountKey",  this.getCustodyTokenAccountKey(poolName, tokenMint).toBase58())
+
+   const trx_id =  await this.program.methods
+      .testingEditCustody({
+        isStable,
+        oracle: oracleConfig,
+        pricing: pricingConfig,
+        permissions,
+        fees,
+        borrowRate,
+        targetRatio: ratios.target,
+        minRatio: ratios.min,
+        maxRatio: ratios.max,
+      })
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          tokenMint
+        ),
+        custodyTokenMint: tokenMint,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+      console.log("trx_id:", `https://explorer.solana.com/tx/${trx_id}?cluster=devnet`)
   };
 
   removeCustody = async (poolName: string, tokenMint: PublicKey) => {
