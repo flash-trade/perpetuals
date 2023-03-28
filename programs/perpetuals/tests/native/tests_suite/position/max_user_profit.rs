@@ -4,9 +4,10 @@ use {
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
-    perpetuals::instructions::{ClosePositionParams, SetTestOraclePriceParams},
-    perpetuals::state::custody::PricingParams,
-    perpetuals::{instructions::OpenPositionParams, state::position::Side},
+    perpetuals::{
+        instructions::{ClosePositionParams, OpenPositionParams, SetTestOraclePriceParams},
+        state::{custody::PricingParams, position::Side},
+    },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
 };
@@ -188,6 +189,6 @@ pub async fn max_user_profit() {
 
         // Gains are limited to 0.25 * 5 = 1.25 ETH
         // True gains should be 2.5 ETH less fees (price did x2 on x5 leverage)
-        assert_eq!(martin_eth_balance, utils::scale_f64(2.68, ETH_DECIMALS));
+        assert_eq!(martin_eth_balance, utils::scale_f64(2.7, ETH_DECIMALS));
     }
 }

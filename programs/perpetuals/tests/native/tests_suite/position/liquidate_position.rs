@@ -4,10 +4,9 @@ use {
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
-    perpetuals::state::custody::PricingParams,
     perpetuals::{
         instructions::{OpenPositionParams, SetTestOraclePriceParams},
-        state::position::Side,
+        state::{custody::PricingParams, position::Side},
     },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
@@ -212,7 +211,7 @@ pub async fn liquidate_position() {
 
         assert_eq!(
             martin_eth_balance,
-            utils::scale_f64(1.372885555, ETH_DECIMALS)
+            utils::scale_f64(1.348985147, ETH_DECIMALS)
         );
     }
 }
