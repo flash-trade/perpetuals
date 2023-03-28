@@ -112,11 +112,14 @@ async function addCustody(
     slope2: new BN(120000),
     optimalUtilization: new BN(800000000),
   };
-  let ratios = {
-    target: new BN(2600),
-    min: new BN(650),
-    max: new BN(3250),
-  };
+
+  let pool = await client.getPool(poolName);
+  pool.ratios.push({
+    target: new BN(5000),
+    min: new BN(10),
+    max: new BN(10000),
+  });
+  let ratios = client.adjustTokenRatios(pool.ratios);
 
   client.addCustody(
     poolName,
@@ -188,11 +191,14 @@ async function editCustody(
     slope2: new BN(120000),
     optimalUtilization: new BN(800000000),
   };
-  let ratios = {
-    target: new BN(2600), // 50% = 5000 i.e 50*100
+
+  let pool = await client.getPool(poolName);
+  pool.ratios.push({
+    target: new BN(5000),
     min: new BN(10),
-    max: new BN(20000),
-  };
+    max: new BN(10000),
+  });
+  let ratios = client.adjustTokenRatios(pool.ratios);
 
   client.editCustody(
     poolName,
@@ -216,7 +222,11 @@ async function getCustodies(poolName: string) {
 }
 
 async function removeCustody(poolName: string, tokenMint: PublicKey) {
-  client.removeCustody(poolName, tokenMint);
+  let pool = await client.getPool(poolName);
+  pool.ratios.pop();
+  let ratios = client.adjustTokenRatios(pool.ratios);
+
+  client.removeCustody(poolName, tokenMint, ratios);
 }
 
 async function upgradeCustody(poolName: string, tokenMint: PublicKey) {
@@ -307,10 +317,19 @@ async function getLiquidationPrice(
   wallet: PublicKey,
   poolName: string,
   tokenMint: PublicKey,
-  side: PositionSide
+  side: PositionSide,
+  addCollateral: BN,
+  removeCollateral: BN
 ) {
   client.prettyPrint(
-    await client.getLiquidationPrice(wallet, poolName, tokenMint, side)
+    await client.getLiquidationPrice(
+      wallet,
+      poolName,
+      tokenMint,
+      side,
+      addCollateral,
+      removeCollateral
+    )
   );
 }
 
@@ -636,12 +655,16 @@ async function getAum(poolName: string) {
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .argument("<string>", "Position side (long / short)")
-    .action(async (wallet, poolName, tokenMint, side) => {
+    .option("-a, --add-collateral <bigint>", "Collateral to add")
+    .option("-r, --remove-collateral <bigint>", "Collateral to remove")
+    .action(async (wallet, poolName, tokenMint, side, options) => {
       await getLiquidationPrice(
         new PublicKey(wallet),
         poolName,
         new PublicKey(tokenMint),
-        side
+        side,
+        new BN(options.addCollateral),
+        new BN(options.removeCollateral)
       );
     });
 

@@ -22,25 +22,33 @@ pub enum AumCalcMode {
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
-pub struct PoolToken {
-    pub custody: Pubkey,
-
-    // ratios have implied BPS_DECIMALS decimals
-    pub target_ratio: u64,
-    pub min_ratio: u64,
-    pub max_ratio: u64,
+pub struct TokenRatios {
+    pub target: u64,
+    pub min: u64,
+    pub max: u64,
 }
 
 #[account]
 #[derive(Default, Debug)]
 pub struct Pool {
     pub name: String,
-    pub tokens: Vec<PoolToken>,
+    pub custodies: Vec<Pubkey>,
+    pub ratios: Vec<TokenRatios>,
     pub aum_usd: u128,
 
     pub bump: u8,
     pub lp_token_bump: u8,
     pub inception_time: i64,
+}
+
+impl TokenRatios {
+    pub fn validate(&self) -> bool {
+        (self.target as u128) <= Perpetuals::BPS_POWER
+            && (self.min as u128) <= Perpetuals::BPS_POWER
+            && (self.max as u128) <= Perpetuals::BPS_POWER
+            && self.min <= self.target
+            && self.target <= self.max
+    }
 }
 
 /// Token Pool
@@ -50,10 +58,39 @@ pub struct Pool {
 impl Pool {
     pub const LEN: usize = 8 + std::mem::size_of::<Pool>();
 
+    pub fn validate(&self) -> bool {
+        for ratio in &self.ratios {
+            if !ratio.validate() {
+                return false;
+            }
+        }
+
+        // check target ratios add up to 1
+        if !self.ratios.is_empty()
+            && self
+                .ratios
+                .iter()
+                .map(|&x| (x.target as u128))
+                .sum::<u128>()
+                != Perpetuals::BPS_POWER
+        {
+            return false;
+        }
+
+        // check custodies are unique
+        for i in 1..self.custodies.len() {
+            if self.custodies[i..].contains(&self.custodies[i - 1]) {
+                return false;
+            }
+        }
+
+        !self.name.is_empty() && self.name.len() <= 64 && self.custodies.len() == self.ratios.len()
+    }
+
     pub fn get_token_id(&self, custody: &Pubkey) -> Result<usize> {
-        self.tokens
+        self.custodies
             .iter()
-            .position(|&k| k.custody == *custody)
+            .position(|&k| k == *custody)
             .ok_or_else(|| PerpetualsError::UnsupportedToken.into())
     }
 
@@ -161,7 +198,12 @@ impl Pool {
             0
         };
 
-        let close_amount = token_price.get_token_amount(available_amount_usd, custody.decimals)?;
+        let max_price = if token_price > token_ema_price {
+            token_price
+        } else {
+            token_ema_price
+        };
+        let close_amount = max_price.get_token_amount(available_amount_usd, custody.decimals)?;
         let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
 
         Ok((
@@ -317,9 +359,9 @@ impl Pool {
     ) -> Result<bool> {
         let new_ratio = self.get_new_ratio(amount_add, amount_remove, custody, token_price)?;
 
-        if new_ratio < self.tokens[token_id].min_ratio {
+        if new_ratio < self.ratios[token_id].min {
             Ok(new_ratio >= self.get_current_ratio(custody, token_price)?)
-        } else if new_ratio > self.tokens[token_id].max_ratio {
+        } else if new_ratio > self.ratios[token_id].max {
             Ok(new_ratio <= self.get_current_ratio(custody, token_price)?)
         } else {
             Ok(true)
@@ -489,18 +531,28 @@ impl Pool {
             return Ok((0, 0, 0));
         }
 
-        let collateral = token_price.get_token_amount(position.collateral_usd, custody.decimals)?;
+        let min_price = if token_price < token_ema_price {
+            token_price
+        } else {
+            token_ema_price
+        };
+        let max_price = if token_price > token_ema_price {
+            token_price
+        } else {
+            token_ema_price
+        };
+        let collateral = max_price.get_token_amount(position.collateral_usd, custody.decimals)?;
 
         let exit_price =
             self.get_exit_price(token_price, token_ema_price, position.side, custody)?;
 
         let exit_fee = if liquidation {
-            self.get_liquidation_fee(token_id, collateral, custody, token_price)?
+            self.get_liquidation_fee(token_id, collateral, custody, token_ema_price)?
         } else {
-            self.get_exit_fee(token_id, collateral, custody, token_price)?
+            self.get_exit_fee(token_id, collateral, custody, token_ema_price)?
         };
 
-        let exit_fee_usd = token_price.get_asset_amount_usd(exit_fee, custody.decimals)?;
+        let exit_fee_usd = token_ema_price.get_asset_amount_usd(exit_fee, custody.decimals)?;
         let interest_usd = custody.get_interest_amount_usd(position, curtime)?;
         let unrealized_loss_usd = math::checked_add(
             math::checked_add(exit_fee_usd, interest_usd)?,
@@ -536,7 +588,7 @@ impl Pool {
             if potential_profit_usd >= unrealized_loss_usd {
                 let cur_profit_usd = math::checked_sub(potential_profit_usd, unrealized_loss_usd)?;
                 let max_profit_usd =
-                    token_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
+                    min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
@@ -570,7 +622,7 @@ impl Pool {
                 let cur_profit_usd =
                     math::checked_sub(position.unrealized_profit_usd, potential_loss_usd)?;
                 let max_profit_usd =
-                    token_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
+                    min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
@@ -587,13 +639,13 @@ impl Pool {
         curtime: i64,
     ) -> Result<u128> {
         let mut pool_amount_usd: u128 = 0;
-        for (idx, &token) in self.tokens.iter().enumerate() {
-            let oracle_idx = idx + self.tokens.len();
+        for (idx, &custody) in self.custodies.iter().enumerate() {
+            let oracle_idx = idx + self.custodies.len();
             if oracle_idx >= accounts.len() {
                 return Err(ProgramError::NotEnoughAccountKeys.into());
             }
 
-            require_keys_eq!(accounts[idx].key(), token.custody);
+            require_keys_eq!(accounts[idx].key(), custody);
             let custody = Account::<Custody>::try_from(&accounts[idx])?;
             require_keys_eq!(accounts[oracle_idx].key(), custody.oracle.oracle_account);
 
@@ -814,10 +866,10 @@ impl Pool {
         if custody.fees.mode == FeesMode::Fixed {
             return Self::get_fee_amount(base_fee, std::cmp::max(amount_add, amount_remove));
         }
-        let token = &self.tokens[token_id];
+        let ratios = &self.ratios[token_id];
         let new_ratio = self.get_new_ratio(amount_add, amount_remove, custody, token_price)?;
 
-        let fee = match new_ratio.cmp(&token.target_ratio) {
+        let fee = match new_ratio.cmp(&ratios.target) {
             Ordering::Equal => base_fee,
             Ordering::Greater => {
                 let max_fee_change = math::checked_as_u64(math::checked_div(
@@ -825,7 +877,7 @@ impl Pool {
                     Perpetuals::BPS_POWER,
                 )?)?;
 
-                if token.max_ratio <= token.target_ratio || token.max_ratio <= new_ratio {
+                if ratios.max <= ratios.target || ratios.max <= new_ratio {
                     math::checked_add(base_fee, max_fee_change)?
                 } else {
                     math::checked_add(
@@ -833,12 +885,12 @@ impl Pool {
                         math::checked_as_u64(math::checked_ceil_div(
                             math::checked_mul(
                                 math::checked_sub(
-                                    std::cmp::min(token.max_ratio, new_ratio),
-                                    token.target_ratio,
+                                    std::cmp::min(ratios.max, new_ratio),
+                                    ratios.target,
                                 )? as u128,
                                 max_fee_change as u128,
                             )?,
-                            math::checked_sub(token.max_ratio, token.target_ratio)? as u128,
+                            math::checked_sub(ratios.max, ratios.target)? as u128,
                         )?)?,
                     )?
                 }
@@ -849,18 +901,16 @@ impl Pool {
                     Perpetuals::BPS_POWER,
                 )?)?;
 
-                if token.target_ratio <= token.min_ratio || token.max_ratio <= new_ratio {
+                if ratios.target <= ratios.min || ratios.max <= new_ratio {
                     math::checked_sub(base_fee, max_fee_change)?
                 } else {
                     let fee_reduce = math::checked_as_u64(math::checked_ceil_div(
                         math::checked_mul(
-                            math::checked_sub(
-                                token.target_ratio,
-                                std::cmp::max(token.min_ratio, new_ratio),
-                            )? as u128,
+                            math::checked_sub(ratios.target, std::cmp::max(ratios.min, new_ratio))?
+                                as u128,
                             max_fee_change as u128,
                         )?,
-                        math::checked_sub(token.target_ratio, token.min_ratio)? as u128,
+                        math::checked_sub(ratios.target, ratios.min)? as u128,
                     )?)?;
                     if base_fee > fee_reduce {
                         math::checked_sub(base_fee, fee_reduce)?
@@ -885,11 +935,10 @@ mod test {
     };
 
     fn get_fixture() -> (Pool, Custody, Position, OraclePrice, OraclePrice) {
-        let token = PoolToken {
-            custody: Pubkey::default(),
-            target_ratio: 5000,
-            min_ratio: 1000,
-            max_ratio: 9000,
+        let ratios = TokenRatios {
+            target: 5000,
+            min: 1000,
+            max: 9000,
         };
 
         let oracle = OracleParams {
@@ -971,7 +1020,7 @@ mod test {
         (
             Pool {
                 name: "Test Pool".to_string(),
-                tokens: vec![token, token],
+                ratios: vec![ratios, ratios],
                 ..Default::default()
             },
             custody,
@@ -1106,7 +1155,7 @@ mod test {
             .unwrap()
         );
 
-        pool.tokens[0].max_ratio = 10001;
+        pool.ratios[0].max = 10001;
         assert_eq!(
             scale_f64(0.6, custody.decimals),
             pool.get_fee(
@@ -1120,7 +1169,7 @@ mod test {
             .unwrap()
         );
 
-        pool.tokens[0].max_ratio = 9000;
+        pool.ratios[0].max = 9000;
         pool.aum_usd = scale(5000000, Perpetuals::USD_DECIMALS) as u128;
         custody.assets.owned = scale(10000, custody.decimals);
         assert_eq!(

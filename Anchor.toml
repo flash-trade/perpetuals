@@ -1,5 +1,6 @@
 [features]
 seeds = false
+
 # [programs.localnet]
 # perpetuals = "FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD"
 [programs.devnet]
