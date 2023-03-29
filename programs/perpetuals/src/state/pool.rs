@@ -1,3 +1,5 @@
+use tokio::time::error::Elapsed;
+
 use {
     crate::{
         error::PerpetualsError,
@@ -118,47 +120,57 @@ impl Pool {
             .price)
     }
 
-    pub fn get_entry_fee(&self, size: u64, custody: &Custody) -> Result<u64> {
+    pub fn get_entry_fee(
+        &self,
+        size: u64,
+        locked_amount: u64,
+        token_price: &OraclePrice,
+        collateral_min_price: &OraclePrice,
+        custody: &Custody,
+        collateral_custody: &Custody
+    ) -> Result<u64> {
         // entry_fee = custody.fees.open_position * utilization_fee * size
         // where utilization_fee = 1 + custody.fees.utilization_mult * (new_utilization - optimal_utilization) / (1 - optimal_utilization);
 
         let mut size_fee = Self::get_fee_amount(custody.fees.open_position, size)?;
+        let size_fee_usd = token_price.get_asset_amount_usd(size_fee, custody.decimals)?;
+        size_fee = collateral_min_price.get_token_amount(size_fee_usd, collateral_custody.decimals)?;
 
-        let new_locked_amount = math::checked_as_u64(math::checked_div(
-            math::checked_mul(size as u128, custody.pricing.max_payoff_mult as u128)?,
-            Perpetuals::BPS_POWER,
-        )?)?;
+        // let new_locked_amount = math::checked_as_u64(math::checked_div(
+        //     math::checked_mul(size as u128, custody.pricing.max_payoff_mult as u128)?,
+        //     Perpetuals::BPS_POWER,
+        // )?)?;
 
-        let new_utilization = if custody.assets.owned > 0 {
-            // utilization = (assets_locked + new_locked_amount) / assets_owned
+        let new_utilization = if collateral_custody.assets.owned > 0 {
+            // utilization = (assets_locked + locked_amount) / assets_owned
             std::cmp::min(
                 Perpetuals::RATE_POWER,
                 math::checked_div(
                     math::checked_mul(
-                        math::checked_add(custody.assets.locked, new_locked_amount)? as u128,
+                        math::checked_add(collateral_custody.assets.locked, locked_amount)? as u128,
                         Perpetuals::RATE_POWER,
                     )?,
-                    custody.assets.owned as u128,
+                    collateral_custody.assets.owned as u128,
                 )?,
             )
         } else {
             Perpetuals::RATE_POWER
         };
 
-        if new_utilization > custody.borrow_rate.optimal_utilization as u128 {
+        if new_utilization > collateral_custody.borrow_rate.optimal_utilization as u128 {
             let utilization_fee = math::checked_add(
                 Perpetuals::BPS_POWER,
                 math::checked_div(
                     math::checked_mul(
-                        custody.fees.utilization_mult as u128,
+                        collateral_custody.fees.utilization_mult as u128,
                         math::checked_sub(
                             new_utilization,
-                            custody.borrow_rate.optimal_utilization as u128,
+                            collateral_custody.borrow_rate.optimal_utilization as u128,
                         )?,
                     )?,
                     math::checked_sub(
                         Perpetuals::RATE_POWER,
-                        custody.borrow_rate.optimal_utilization as u128,
+                        collateral_custody.borrow_rate.optimal_utilization as u128,
                     )?,
                 )?,
             )?;
@@ -208,7 +220,10 @@ impl Pool {
         position: &Position,
         token_price: &OraclePrice,
         token_ema_price: &OraclePrice,
+        collateral_token_price: &OraclePrice,
+        collateral_token_ema_price: &OraclePrice,
         custody: &Custody,
+        collateral_custody: &Custody,
         curtime: i64,
         liquidation: bool,
     ) -> Result<(u64, u64, u64, u64)> {
@@ -229,17 +244,21 @@ impl Pool {
             0
         };
 
-        let max_price = if token_price > token_ema_price {
-            token_price
+        let exit_fee_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
+        let exit_fee = collateral_token_ema_price.get_token_amount(exit_fee_usd, collateral_custody.decimals)?;
+        
+        let min_collateral_token_price = if collateral_token_price < collateral_token_ema_price {
+            collateral_token_price
         } else {
-            token_ema_price
+            collateral_token_ema_price
         };
-        let close_amount = max_price.get_token_amount(available_amount_usd, custody.decimals)?;
+
+        let close_amount = min_collateral_token_price.get_token_amount(available_amount_usd, collateral_custody.decimals)?;
         let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
 
         Ok((
             std::cmp::min(max_amount, close_amount),
-            fee_amount,
+            exit_fee,
             profit_usd,
             loss_usd,
         ))
@@ -461,6 +480,7 @@ impl Pool {
         position: &Position,
         token_price: &OraclePrice,
         custody: &Custody,
+        collateral_custody: &Custody,
         curtime: i64,
     ) -> Result<u64> {
         // liq_price = pos_price +- (collateral + unreal_profit - unreal_loss - exit_fee - interest - size/max_leverage) * pos_price / size
@@ -472,7 +492,8 @@ impl Pool {
         let size = token_price.get_token_amount(position.size_usd, custody.decimals)?;
         let exit_fee_tokens = self.get_exit_fee(size, custody)?;
         let exit_fee_usd = token_price.get_asset_amount_usd(exit_fee_tokens, custody.decimals)?;
-        let interest_usd = custody.get_interest_amount_usd(position, curtime)?;
+
+        let interest_usd = collateral_custody.get_interest_amount_usd(position, curtime)?;
         let unrealized_loss_usd = math::checked_add(
             math::checked_add(exit_fee_usd, interest_usd)?,
             position.unrealized_loss_usd,
@@ -596,10 +617,10 @@ impl Pool {
 
             if potential_profit_usd >= unrealized_loss_usd {
                 let cur_profit_usd = math::checked_sub(potential_profit_usd, unrealized_loss_usd)?;
-                let max_profit_usd =
-                    min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
+                // let max_profit_usd =
+                //     min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?; //todo: locked_amount is not in custody
                 Ok((
-                    std::cmp::min(max_profit_usd, cur_profit_usd),
+                    cur_profit_usd,
                     0u64,
                     exit_fee,
                 ))
@@ -627,10 +648,10 @@ impl Pool {
             } else {
                 let cur_profit_usd =
                     math::checked_sub(position.unrealized_profit_usd, potential_loss_usd)?;
-                let max_profit_usd =
-                    min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
+                // let max_profit_usd =
+                //     min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?; //todo: locked_amount is not in custody
                 Ok((
-                    std::cmp::min(max_profit_usd, cur_profit_usd),
+                    cur_profit_usd,
                     0u64,
                     exit_fee,
                 ))
@@ -959,7 +980,7 @@ mod test {
         },
     };
 
-    fn get_fixture() -> (Pool, Custody, Position, OraclePrice, OraclePrice) {
+    fn get_fixture() -> (Pool, Custody, Custody, Position, OraclePrice, OraclePrice, OraclePrice, OraclePrice) {
         let ratios = TokenRatios {
             target: 5000,
             min: 1000,
@@ -1026,6 +1047,17 @@ mod test {
             ..Custody::default()
         };
 
+        let collateral_custody = Custody {
+            token_account: Pubkey::default(),
+            mint: Pubkey::default(),
+            decimals: 5,
+            oracle,
+            pricing,
+            permissions,
+            fees,
+            ..Custody::default()
+        };
+
         let position = Position {
             side: Side::Long,
             price: scale(120, Perpetuals::PRICE_DECIMALS),
@@ -1045,6 +1077,15 @@ mod test {
             exponent: -3,
         };
 
+        let collateral_token_price = OraclePrice {
+            price: 123000,
+            exponent: -3,
+        };
+        let collateral_token_ema_price = OraclePrice {
+            price: 122000,
+            exponent: -3,
+        };
+
         (
             Pool {
                 name: "Test Pool".to_string(),
@@ -1052,9 +1093,12 @@ mod test {
                 ..Default::default()
             },
             custody,
+            collateral_custody,
             position,
             token_price,
             token_ema_price,
+            collateral_token_price,
+            collateral_token_ema_price
         )
     }
 
@@ -1071,7 +1115,7 @@ mod test {
 
     #[test]
     fn test_get_new_ratio() {
-        let (mut pool, mut custody, _position, token_price, _token_ema_price) = get_fixture();
+        let (mut pool, mut custody, _collateral_custody, _position, token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             scale(1, Perpetuals::BPS_DECIMALS),
@@ -1120,7 +1164,7 @@ mod test {
 
     #[test]
     fn test_get_price() {
-        let (pool, custody, _position, token_price, token_ema_price) = get_fixture();
+        let (pool, custody, _collateral_custody, _position, token_price, token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             OraclePrice {
@@ -1153,7 +1197,7 @@ mod test {
 
     #[test]
     fn test_get_entry_fee() {
-        let (pool, mut custody, _position, _token_price, _token_ema_price) = get_fixture();
+        let (pool, mut custody, _collateral_custody, _position, _token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         custody.fees.utilization_mult = 20000;
         custody.assets.owned = 200000;
@@ -1205,7 +1249,7 @@ mod test {
 
     #[test]
     fn test_get_fee() {
-        let (mut pool, mut custody, _position, token_price, _token_ema_price) = get_fixture();
+        let (mut pool, mut custody, _collateral_custody, _position, token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         custody.fees.mode = FeesMode::Fixed;
         assert_eq!(
@@ -1312,7 +1356,7 @@ mod test {
 
     #[test]
     fn test_get_pnl_usd() {
-        let (pool, custody, mut position, token_price, token_ema_price) = get_fixture();
+        let (pool, custody, _collateral_custody, mut position, token_price, token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             (scale_f64(6.5, Perpetuals::USD_DECIMALS), 0, 0),
@@ -1358,7 +1402,7 @@ mod test {
 
     #[test]
     fn test_get_leverage() {
-        let (pool, custody, mut position, _token_price, token_ema_price) = get_fixture();
+        let (pool, custody, _collateral_custody, mut position, _token_price, token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             scale_f64(4.8426, Perpetuals::BPS_DECIMALS),
@@ -1411,7 +1455,7 @@ mod test {
 
     #[test]
     fn test_get_liquidation_price() {
-        let (pool, custody, mut position, token_price, _token_ema_price) = get_fixture();
+        let (pool, custody, _collateral_custody, mut position, token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             scale_f64(108.0, Perpetuals::PRICE_DECIMALS),
@@ -1457,7 +1501,7 @@ mod test {
 
     #[test]
     fn test_get_close_amount() {
-        let (pool, custody, position, token_price, token_ema_price) = get_fixture();
+        let (pool, custody, collateral_custody, position, token_price, token_ema_price, collateral_token_price, collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             (
@@ -1470,7 +1514,10 @@ mod test {
                 &position,
                 &token_price,
                 &token_ema_price,
+                &collateral_token_price,
+                &collateral_token_ema_price,
                 &custody,
+                &collateral_custody,
                 0,
                 false
             )
@@ -1480,7 +1527,7 @@ mod test {
 
     #[test]
     fn test_get_interest_amount_usd() {
-        let (_pool, mut custody, mut position, _token_price, _token_ema_price) = get_fixture();
+        let (_pool, mut custody, _collateral_custody, mut position, _token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         custody.borrow_rate = BorrowRateParams {
             base_rate: 0,

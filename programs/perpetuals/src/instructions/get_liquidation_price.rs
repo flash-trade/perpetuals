@@ -49,6 +49,15 @@ pub struct GetLiquidationPrice<'info> {
         constraint = custody_oracle_account.key() == custody.oracle.oracle_account
     )]
     pub custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 collateral_custody.mint.as_ref()],
+        bump = collateral_custody.bump
+    )]
+    pub collateral_custody: Box<Account<'info, Custody>>,
+
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -62,6 +71,7 @@ pub fn get_liquidation_price(
     params: &GetLiquidationPriceParams,
 ) -> Result<u64> {
     let custody = ctx.accounts.custody.as_mut();
+    let collateral_custody = ctx.accounts.collateral_custody.as_mut();
     let curtime = ctx.accounts.perpetuals.get_time()?;
 
     let token_price = OraclePrice::new_from_oracle(
@@ -113,5 +123,5 @@ pub fn get_liquidation_price(
 
     ctx.accounts
         .pool
-        .get_liquidation_price(&position, &token_ema_price, custody, curtime)
+        .get_liquidation_price(&position, &token_ema_price, custody, collateral_custody, curtime)
 }

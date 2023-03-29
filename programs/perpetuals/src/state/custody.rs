@@ -422,28 +422,29 @@ impl Custody {
     pub fn add_position(
         &mut self,
         position: &Position,
-        token_price: &OraclePrice,
+        collateral_token_price: &OraclePrice,
+        collateral_custody: &mut Custody,
         curtime: i64,
     ) -> Result<()> {
         // compute accumulated interest
-        let collective_position = self.get_collective_position(position.side)?;
-        let interest_usd = self.get_interest_amount_usd(&collective_position, curtime)?;
+        let collective_position = collateral_custody.get_collective_position(position.side)?;
+        let interest_usd = collateral_custody.get_interest_amount_usd(&collective_position, curtime)?;
 
         // update positions
-        let stats = if position.side == Side::Long {
-            &mut self.long_positions
+        let (stats, collateral_stats) = if position.side == Side::Long {
+            (&mut self.long_positions, &mut collateral_custody.long_positions)
         } else {
-            &mut self.short_positions
+            (&mut self.short_positions, &mut collateral_custody.short_positions)
         };
 
-        stats.cumulative_interest_usd =
-            math::checked_add(stats.cumulative_interest_usd, interest_usd)?;
-        stats.cumulative_interest_snapshot = position.cumulative_interest_snapshot;
+        collateral_stats.cumulative_interest_usd =
+            math::checked_add(collateral_stats.cumulative_interest_usd, interest_usd)?;
+        collateral_stats.cumulative_interest_snapshot = position.cumulative_interest_snapshot;
 
         stats.open_positions = math::checked_add(stats.open_positions, 1)?;
-        stats.collateral_usd = math::checked_add(stats.collateral_usd, position.collateral_usd)?;
+        collateral_stats.collateral_usd = math::checked_add(collateral_stats.collateral_usd, position.collateral_usd)?;
         stats.size_usd = math::checked_add(stats.size_usd, position.size_usd)?;
-        stats.locked_amount = math::checked_add(stats.locked_amount, position.locked_amount)?;
+        collateral_stats.locked_amount = math::checked_add(collateral_stats.locked_amount, position.locked_amount)?;
 
         let position_price = math::scale_to_exponent(
             position.price,
@@ -461,19 +462,19 @@ impl Custody {
         stats.total_quantity = math::checked_add(stats.total_quantity, quantity)?;
 
         // check limits
-        if self.pricing.max_position_locked_usd > 0 {
+        if collateral_custody.pricing.max_position_locked_usd > 0 {
             let locked_amount_usd =
-                token_price.get_asset_amount_usd(position.locked_amount, self.decimals)?;
+                collateral_token_price.get_asset_amount_usd(position.locked_amount, self.decimals)?;
             require!(
-                locked_amount_usd <= self.pricing.max_position_locked_usd,
+                locked_amount_usd <= collateral_custody.pricing.max_position_locked_usd,
                 PerpetualsError::PositionAmountLimit
             );
         }
-        if self.pricing.max_total_locked_usd > 0 {
+        if collateral_custody.pricing.max_total_locked_usd > 0 {
             let locked_amount_usd =
-                token_price.get_asset_amount_usd(stats.locked_amount, self.decimals)?;
+                collateral_token_price.get_asset_amount_usd(stats.locked_amount, self.decimals)?;
             require!(
-                locked_amount_usd <= self.pricing.max_total_locked_usd,
+                locked_amount_usd <= collateral_custody.pricing.max_total_locked_usd,
                 PerpetualsError::CustodyAmountLimit
             );
         }
@@ -481,18 +482,18 @@ impl Custody {
         Ok(())
     }
 
-    pub fn remove_position(&mut self, position: &Position, curtime: i64) -> Result<()> {
+    pub fn remove_position(&mut self, position: &Position, collateral_custody: &mut Custody, curtime: i64) -> Result<()> {
         // compute accumulated interest
-        let collective_position = self.get_collective_position(position.side)?;
-        let interest_usd = self.get_interest_amount_usd(&collective_position, curtime)?;
-        let cumulative_interest_snapshot = self.get_cumulative_interest(curtime)?;
-        let position_interest_usd = self.get_interest_amount_usd(position, curtime)?;
+        let collective_position = collateral_custody.get_collective_position(position.side)?;
+        let interest_usd = collateral_custody.get_interest_amount_usd(&collective_position, curtime)?;
+        let cumulative_interest_snapshot = collateral_custody.get_cumulative_interest(curtime)?;
+        let position_interest_usd = collateral_custody.get_interest_amount_usd(position, curtime)?;
 
         // update stats
-        let stats = if position.side == Side::Long {
-            &mut self.long_positions
+        let (stats, collateral_stats) = if position.side == Side::Long {
+            (&mut self.long_positions, &mut collateral_custody.long_positions)
         } else {
-            &mut self.short_positions
+            (&mut self.short_positions, &mut collateral_custody.short_positions)
         };
 
         if stats.open_positions == 1 {
@@ -500,17 +501,17 @@ impl Custody {
             return Ok(());
         }
 
-        stats.cumulative_interest_usd =
-            math::checked_add(stats.cumulative_interest_usd, interest_usd)?;
-        stats.cumulative_interest_usd = stats
+        collateral_stats.cumulative_interest_usd =
+            math::checked_add(collateral_stats.cumulative_interest_usd, interest_usd)?;
+        collateral_stats.cumulative_interest_usd = collateral_stats
             .cumulative_interest_usd
             .saturating_sub(position_interest_usd);
-        stats.cumulative_interest_snapshot = cumulative_interest_snapshot;
+        collateral_stats.cumulative_interest_snapshot = cumulative_interest_snapshot;
 
         stats.open_positions = math::checked_sub(stats.open_positions, 1)?;
-        stats.collateral_usd = math::checked_sub(stats.collateral_usd, position.collateral_usd)?;
+        collateral_stats.collateral_usd = math::checked_sub(collateral_stats.collateral_usd, position.collateral_usd)?;
         stats.size_usd = math::checked_sub(stats.size_usd, position.size_usd)?;
-        stats.locked_amount = math::checked_sub(stats.locked_amount, position.locked_amount)?;
+        collateral_stats.locked_amount = math::checked_sub(collateral_stats.locked_amount, position.locked_amount)?;
 
         let position_price = math::scale_to_exponent(
             position.price,

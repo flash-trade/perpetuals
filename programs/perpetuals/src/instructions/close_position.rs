@@ -79,12 +79,27 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 collateral_custody.mint.as_ref()],
+        bump = collateral_custody.bump
+    )]
+    pub collateral_custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the collateral token
+    #[account(
+        constraint = collateral_custody_oracle_account.key() == collateral_custody.oracle.oracle_account
+    )]
+    pub collateral_custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
         seeds = [b"custody_token_account",
                  pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.token_account_bump
+                 collateral_custody.mint.as_ref()],
+        bump = collateral_custody.token_account_bump
     )]
-    pub custody_token_account: Box<Account<'info, TokenAccount>>,
+    pub collateral_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
 }
@@ -99,6 +114,8 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     msg!("Check permissions");
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let custody = ctx.accounts.custody.as_mut();
+    let collateral_custody = ctx.accounts.collateral_custody.as_mut();
+
     require!(
         perpetuals.permissions.allow_close_position && custody.permissions.allow_close_position,
         PerpetualsError::InstructionNotAllowed
@@ -133,6 +150,24 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         custody.pricing.use_ema,
     )?;
 
+    let collateral_token_price = OraclePrice::new_from_oracle(
+        collateral_custody.oracle.oracle_type,
+        &ctx.accounts.collateral_custody_oracle_account.to_account_info(),
+        collateral_custody.oracle.max_price_error,
+        collateral_custody.oracle.max_price_age_sec,
+        curtime,
+        false,
+    )?;
+
+    let collateral_token_ema_price = OraclePrice::new_from_oracle(
+        collateral_custody.oracle.oracle_type,
+        &ctx.accounts.collateral_custody_oracle_account.to_account_info(),
+        collateral_custody.oracle.max_price_error,
+        collateral_custody.oracle.max_price_age_sec,
+        curtime,
+        collateral_custody.pricing.use_ema,
+    )?;
+
     let exit_price = pool.get_exit_price(&token_price, &token_ema_price, position.side, custody)?;
     msg!("Exit price: {}", exit_price);
 
@@ -147,31 +182,34 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         position,
         &token_price,
         &token_ema_price,
+        &collateral_token_price,
+        &collateral_token_ema_price,
         custody,
+        collateral_custody,
         curtime,
         false,
     )?;
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+    let protocol_fee = Pool::get_fee_amount(collateral_custody.fees.protocol_share, fee_amount)?;
 
     msg!("Net profit: {}, loss: {}", profit_usd, loss_usd);
     msg!("Collected fee: {}", fee_amount);
     msg!("Amount out: {}", transfer_amount);
 
     // unlock pool funds
-    custody.unlock_funds(position.locked_amount)?;
+    collateral_custody.unlock_funds(position.locked_amount)?;
 
     // check pool constraints
     msg!("Check pool constraints");
     require!(
-        pool.check_available_amount(transfer_amount, custody)?,
+        pool.check_available_amount(transfer_amount, collateral_custody)?,
         PerpetualsError::CustodyAmountLimit
     );
 
     // transfer tokens
     msg!("Transfer tokens");
     perpetuals.transfer_tokens(
-        ctx.accounts.custody_token_account.to_account_info(),
+        ctx.accounts.collateral_custody_token_account.to_account_info(),
         ctx.accounts.receiving_account.to_account_info(),
         ctx.accounts.transfer_authority.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
@@ -180,7 +218,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
 
     // update custody stats
     msg!("Update custody stats");
-    custody.collected_fees.close_position_usd = custody
+    collateral_custody.collected_fees.close_position_usd = collateral_custody
         .collected_fees
         .close_position_usd
         .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
@@ -191,10 +229,10 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         .wrapping_add(position.size_usd);
 
     let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
-    custody.assets.owned = math::checked_sub(custody.assets.owned, amount_lost)?;
-    custody.assets.collateral =
-        math::checked_sub(custody.assets.collateral, position.collateral_amount)?;
-    custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
+    collateral_custody.assets.owned = math::checked_sub(collateral_custody.assets.owned, amount_lost)?;
+    collateral_custody.assets.collateral =
+        math::checked_sub(collateral_custody.assets.collateral, position.collateral_amount)?;
+    collateral_custody.assets.protocol_fees = math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
     if position.side == Side::Long {
         custody.trade_stats.oi_long_usd = custody
@@ -211,8 +249,8 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
     custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
 
-    custody.remove_position(position, curtime)?;
-    custody.update_borrow_rate(curtime)?;
+    custody.remove_position(position, collateral_custody, curtime)?;
+    collateral_custody.update_borrow_rate(curtime)?;
 
     Ok(())
 }
