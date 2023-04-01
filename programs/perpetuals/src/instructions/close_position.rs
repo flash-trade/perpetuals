@@ -115,19 +115,22 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let custody = ctx.accounts.custody.as_mut();
     let collateral_custody = ctx.accounts.collateral_custody.as_mut();
+    let position = ctx.accounts.position.as_mut();
+    let pool = ctx.accounts.pool.as_mut();
 
     require!(
         perpetuals.permissions.allow_close_position && custody.permissions.allow_close_position,
         PerpetualsError::InstructionNotAllowed
     );
-
+    if position.collateral_custody == collateral_custody.key(){
+        return Err(ProgramError::InvalidAccountData.into());
+    }
+    
     // validate inputs
     msg!("Validate inputs");
     if params.price == 0 {
         return Err(ProgramError::InvalidArgument.into());
     }
-    let position = ctx.accounts.position.as_mut();
-    let pool = ctx.accounts.pool.as_mut();
 
     // compute exit price
     let curtime = perpetuals.get_time()?;

@@ -117,20 +117,23 @@ pub fn remove_collateral(
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let custody = ctx.accounts.custody.as_mut();
     let collateral_custody = ctx.accounts.collateral_custody.as_mut();
+    let position = ctx.accounts.position.as_mut();
+    let pool = ctx.accounts.pool.as_mut();
+    let collateral_token_id = pool.get_token_id(&collateral_custody.key())?;
     require!(
         perpetuals.permissions.allow_collateral_withdrawal
             && custody.permissions.allow_collateral_withdrawal,
         PerpetualsError::InstructionNotAllowed
     );
+    if position.collateral_custody == collateral_custody.key() {
+        return Err(ProgramError::InvalidAccountData.into());
+    }
 
     // validate inputs
     msg!("Validate inputs");
-    let position = ctx.accounts.position.as_mut();
     if params.collateral_usd == 0 || params.collateral_usd >= position.collateral_usd {
         return Err(ProgramError::InvalidArgument.into());
     }
-    let pool = ctx.accounts.pool.as_mut();
-    let collateral_token_id = pool.get_token_id(&collateral_custody.key())?;
 
     // compute position price
     let curtime = perpetuals.get_time()?;
@@ -169,7 +172,8 @@ pub fn remove_collateral(
     };
 
     // compute fee
-    let collateral = collateral_max_price.get_token_amount(params.collateral_usd, collateral_custody.decimals)?;
+    let collateral = 
+        collateral_max_price.get_token_amount(params.collateral_usd, collateral_custody.decimals)?;
     let fee_amount =
         pool.get_remove_liquidity_fee(collateral_token_id, collateral, collateral_custody, &collateral_token_ema_price)?;
     msg!("Collected fee: {}", fee_amount);

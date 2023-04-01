@@ -168,11 +168,11 @@ pub fn get_entry_price_and_fee(
         cumulative_interest_snapshot: custody.get_cumulative_interest(curtime)?,
         ..Position::default()
     };
-    //todo: update this
+    
     let liquidation_price =
         pool.get_liquidation_price(&position, &token_ema_price, custody, collateral_custody, curtime)?;
 
-    let mut fee = pool.get_entry_fee(
+    let fee = pool.get_entry_fee(
         params.size,
         locked_amount.try_into().unwrap(), 
         &token_price, 

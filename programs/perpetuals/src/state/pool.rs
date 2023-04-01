@@ -1,5 +1,3 @@
-use tokio::time::error::Elapsed;
-
 use {
     crate::{
         error::PerpetualsError,
@@ -564,12 +562,6 @@ impl Pool {
             return Ok((0, 0, 0));
         }
 
-        let min_price = if token_price < token_ema_price {
-            token_price
-        } else {
-            token_ema_price
-        };
-
         let exit_price =
             self.get_exit_price(token_price, token_ema_price, position.side, custody)?;
 
@@ -1078,11 +1070,11 @@ mod test {
         };
 
         let collateral_token_price = OraclePrice {
-            price: 123000,
+            price: 100000,
             exponent: -3,
         };
         let collateral_token_ema_price = OraclePrice {
-            price: 122000,
+            price: 100000,
             exponent: -3,
         };
 
@@ -1197,54 +1189,54 @@ mod test {
 
     #[test]
     fn test_get_entry_fee() {
-        let (pool, mut custody, _collateral_custody, _position, _token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
+        let (pool, mut custody, mut collateral_custody, _position, token_price, _token_ema_price, collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
-        custody.fees.utilization_mult = 20000;
-        custody.assets.owned = 200000;
-        custody.borrow_rate.optimal_utilization = 500000000;
+        collateral_custody.fees.utilization_mult = 20000;
+        collateral_custody.assets.owned = 200000;
+        collateral_custody.borrow_rate.optimal_utilization = 500000000;
 
-        assert_eq!(0, pool.get_entry_fee(0, &custody).unwrap());
+        assert_eq!(0, pool.get_entry_fee(0, 0, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(1000, pool.get_entry_fee(100000, &custody).unwrap());
+        assert_eq!(1230, pool.get_entry_fee(100000, 100000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(3000, pool.get_entry_fee(150000, &custody).unwrap());
+        assert_eq!(3690, pool.get_entry_fee(100000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(6000, pool.get_entry_fee(200000, &custody).unwrap());
+        assert_eq!(2460, pool.get_entry_fee(200000, 100000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(9000, pool.get_entry_fee(300000, &custody).unwrap());
+        assert_eq!(11070, pool.get_entry_fee(300000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        custody.fees.utilization_mult = 10000;
-        custody.assets.owned = 200000;
-        custody.borrow_rate.optimal_utilization = 500000000;
+        collateral_custody.fees.utilization_mult = 10000;
+        collateral_custody.assets.owned = 200000;
+        collateral_custody.borrow_rate.optimal_utilization = 500000000;
 
-        assert_eq!(1000, pool.get_entry_fee(100000, &custody).unwrap());
+        assert_eq!(1230, pool.get_entry_fee(100000, 100000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(2250, pool.get_entry_fee(150000, &custody).unwrap());
+        assert_eq!(1845, pool.get_entry_fee(150000, 100000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(4000, pool.get_entry_fee(200000, &custody).unwrap());
+        assert_eq!(4920, pool.get_entry_fee(200000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(6000, pool.get_entry_fee(300000, &custody).unwrap());
+        assert_eq!(7380, pool.get_entry_fee(300000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        custody.fees.utilization_mult = 5000;
+        collateral_custody.fees.utilization_mult = 5000;
 
-        assert_eq!(1000, pool.get_entry_fee(100000, &custody).unwrap());
+        assert_eq!(1845, pool.get_entry_fee(100000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(1875, pool.get_entry_fee(150000, &custody).unwrap());
+        assert_eq!(2767, pool.get_entry_fee(150000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(3000, pool.get_entry_fee(200000, &custody).unwrap());
+        assert_eq!(2460, pool.get_entry_fee(200000, 100000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(4500, pool.get_entry_fee(300000, &custody).unwrap());
+        assert_eq!(3690, pool.get_entry_fee(300000, 100000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        custody.fees.utilization_mult = 20000;
-        custody.borrow_rate.optimal_utilization = 1000000000;
+        collateral_custody.fees.utilization_mult = 20000;
+        collateral_custody.borrow_rate.optimal_utilization = 1000000000;
 
-        assert_eq!(1000, pool.get_entry_fee(100000, &custody).unwrap());
+        assert_eq!(1230, pool.get_entry_fee(100000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(1500, pool.get_entry_fee(150000, &custody).unwrap());
+        assert_eq!(1845, pool.get_entry_fee(150000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(2000, pool.get_entry_fee(200000, &custody).unwrap());
+        assert_eq!(2460, pool.get_entry_fee(200000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
 
-        assert_eq!(3000, pool.get_entry_fee(300000, &custody).unwrap());
+        assert_eq!(3690, pool.get_entry_fee(300000, 10000000, &token_price, &collateral_token_price, &custody, &collateral_custody).unwrap());
     }
 
     #[test]
@@ -1455,46 +1447,46 @@ mod test {
 
     #[test]
     fn test_get_liquidation_price() {
-        let (pool, custody, _collateral_custody, mut position, token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
+        let (pool, custody, collateral_custody, mut position, token_price, _token_ema_price, _collateral_token_price, _collateral_token_ema_price) = get_fixture();
 
         assert_eq!(
             scale_f64(108.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &collateral_custody, 0)
                 .unwrap()
         );
 
         position.price = scale(110, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(99.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &collateral_custody, 0)
                 .unwrap()
         );
 
         position.price = scale(130, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(117.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &collateral_custody, 0)
                 .unwrap()
         );
 
         position.price = scale(80, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(72.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &collateral_custody, 0)
                 .unwrap()
         );
 
         position.price = scale(0, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(0.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &collateral_custody, 0)
                 .unwrap()
         );
 
         position.price = scale(160, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(144.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &collateral_custody, 0)
                 .unwrap()
         );
     }

@@ -119,13 +119,16 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let custody = ctx.accounts.custody.as_mut();
     let collateral_custody = ctx.accounts.collateral_custody.as_mut();
+    let position = ctx.accounts.position.as_mut();
+    let pool = ctx.accounts.pool.as_mut();
+
     require!(
         perpetuals.permissions.allow_close_position && custody.permissions.allow_close_position,
         PerpetualsError::InstructionNotAllowed
     );
-
-    let position = ctx.accounts.position.as_mut();
-    let pool = ctx.accounts.pool.as_mut();
+    if position.collateral_custody == collateral_custody.key(){
+        return Err(ProgramError::InvalidAccountData.into());
+    }
 
     // check if position can be liquidated
     msg!("Check position state");

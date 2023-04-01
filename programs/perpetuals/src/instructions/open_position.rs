@@ -233,7 +233,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     };
  
     // compute fee
-    let mut fee_amount = pool.get_entry_fee(
+    let fee_amount = pool.get_entry_fee(
         params.size,
         locked_amount.try_into().unwrap(), 
         &token_price, 
@@ -256,6 +256,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     position.owner = ctx.accounts.owner.key();
     position.pool = pool.key();
     position.custody = custody.key();
+    position.collateral_custody = collateral_custody.key();
     position.open_time = curtime;
     position.update_time = 0;
     position.side = params.side;
@@ -321,7 +322,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
             math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
     }
 
-    //todo: in add_position(), using position.locked_amount but the locked_amount can be in different custody, need to manage that
     custody.add_position(position, &collateral_token_price, &mut collateral_custody, curtime)?;
     collateral_custody.update_borrow_rate(curtime)?; 
 
