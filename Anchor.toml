@@ -2,9 +2,10 @@
 seeds = false
 
 # [programs.localnet]
-# perpetuals = "FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD"
+# temp = "FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD"
 [programs.devnet]
 perpetuals = "FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD"
+limit_order_cpi = "41Af5KuLs3fQobV1Pn4q39LGw3aDwY9SWQ4Sj5rB4ZjE"
 
 [registry]
 url = "https://anchor.projectserum.com"

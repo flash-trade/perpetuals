@@ -33,6 +33,9 @@ To build the program run `anchor build` command from the `perpetuals` directory:
 ```sh
 cd perpetuals
 anchor build
+anchor build --program-name perpetuals 
+anchor build --program-name limit_order_cpi 
+
 ```
 
 ### Test

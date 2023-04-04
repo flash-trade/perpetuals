@@ -1,33 +1,22 @@
 [package]
-name = "perpetuals"
+name = "limit-order-cpi"
 version = "0.1.0"
-description = "Flash Trade - Solana Perpetuals Exchange"
-authors = ["Flash Trade Maintainers <admin@flash.trade>"]
-repository = "https://github.com/flash-trade/perpetuals"
-categories = ["finance"]
-keywords = ["solana", "dex", "perpetuals",  "exchange", "flash"]
-license = "Apache-2.0"
-homepage = "https://flash.trade/"
+description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "perpetuals"
+name = "limit_order_cpi"
 
 [features]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-test = []
 default = []
 
-[profile.release]
-lto = true
-codegen-units = 1
-overflow-checks = true
-
 [dependencies]
+perpetuals = { path = "../perpetuals", features = ["cpi"]}
 anchor-lang = {version = "0.26.0", features = ["init-if-needed"]}
 anchor-spl = "0.26.0"
 solana-program = "1.14.13"
