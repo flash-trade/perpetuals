@@ -1,13 +1,13 @@
 [package]
 name = "perpetuals"
 version = "0.1.0"
-description = "Solana Perpetuals Exchange"
-authors = ["Solana Maintainers <maintainers@solana.foundation>"]
-repository = "https://github.com/askibin/perpetuals"
+description = "Flash Trade - Solana Perpetuals Exchange"
+authors = ["Flash.trade Maintainers <abdul@flash.trade,xoheb@flash.trade,rehan@flash.trade> "]
+repository = "https://github.com/flash-trade/perpetuals"
 categories = ["finance"]
-keywords = ["solana", "dex", "perpetuals", "futures", "exchange"]
+keywords = ["solana", "dex", "perpetuals", "futures", "exchange", "flash.trade", "flash"]
 license = "Apache-2.0"
-homepage = "https://solana.com/"
+homepage = "https://flash.trade"
 edition = "2021"
 
 [lib]
