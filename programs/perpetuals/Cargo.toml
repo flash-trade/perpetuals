@@ -7,7 +7,7 @@ repository = "https://github.com/flash-trade/perpetuals"
 categories = ["finance"]
 keywords = ["solana", "dex", "perpetuals", "futures", "exchange", "flash.trade", "flash"]
 license = "Apache-2.0"
-homepage = "https://flash.trade"
+homepage = "https://flash.trade/"
 edition = "2021"
 
 [lib]
