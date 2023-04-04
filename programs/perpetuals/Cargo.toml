@@ -2,7 +2,7 @@
 name = "perpetuals"
 version = "0.1.0"
 description = "Flash Trade - Solana Perpetuals Exchange"
-authors = ["Xoheb <xoheb@flash.trade>", "Rehan <rehan@flash.trade>", "Abdul <abdul@flash.trade>"]
+authors = ["Flash Trade Maintainers <xoheb@flash.trade>"]
 repository = "https://github.com/flash-trade/perpetuals"
 categories = ["finance"]
 keywords = ["solana", "dex", "perpetuals", "futures", "exchange", "flash.trade", "flash"]
