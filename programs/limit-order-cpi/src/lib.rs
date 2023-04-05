@@ -32,51 +32,17 @@ mod limit_order_cpi {
 
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        let pda_account = &mut ctx.accounts.pda_account; //todo: check if we have to specify "mut" in #account
-        pda_account.is_initialized = true;
-        // let pda_account = ctx.accounts.pda_account.as_mut();
-        // let bump = pda_account.bump;
-        msg!("Account Initialized");
-        Ok(())
-    }
-
-    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-        msg!("deposit into limit order pda");
-
-        token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.owner_token_vault.to_account_info(),
-                    to: ctx.accounts.pda_token_vault.to_account_info(),
-                    authority: ctx.accounts.user.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
-
-        Ok(())
-    }
-
     pub fn process_market_order(
         ctx: Context<ProcessMarketOrder>,
         params: OpenPositionParams,
     ) -> Result<()> {
         msg!("Check CPI 1 ");
 
-        // let pda_account = ctx.accounts.pda_account.as_mut();
-        // let bump = pda_account.bump;
-
-        let x = Pubkey::find_program_address(
-            &["PdaAccount".as_ref(), ctx.accounts.user.key.as_ref()],
-            &limit_order_cpi::id(),
-        );
+        let x = Pubkey::find_program_address(&["PdaDirect1".as_ref()], &limit_order_cpi::id());
         let bump = x.1;
         msg!("Check CPI 2.1 {:?}", bump);
 
-        let authority_seeds: &[&[&[u8]]] =
-            &[&[b"PdaAccount", ctx.accounts.user.key.as_ref(), &[bump]]];
+        let authority_seeds: &[&[&[u8]]] = &[&[b"PdaDirect1", &[bump]]];
 
         let cpi_program = ctx.accounts.flash_program.to_account_info();
 
@@ -113,71 +79,6 @@ mod limit_order_cpi {
     }
 }
 
-#[account]
-pub struct UserLimitOrderPdaData {
-    pub is_initialized: bool,
-    pub owner: Pubkey,
-    pub bump: u8,
-}
-
-#[derive(Accounts)]
-pub struct Initialize<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
-    #[account(
-        init,
-        seeds = [b"PdaAccount".as_ref(), user.key().as_ref()],
-        bump,
-        payer = user,
-        space = 8 + std::mem::size_of::<UserLimitOrderPdaData>()
-    )]
-    pub pda_account: Box<Account<'info, UserLimitOrderPdaData>>,
-    #[account(address = system_program::ID)]
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct Deposit<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
-    #[account(
-        mut,
-        // has_one = pda_account,
-        seeds = [b"PdaAccount".as_ref()],
-        bump = pda_account.bump,
-    )]
-    pub pda_account: Box<Account<'info, UserLimitOrderPdaData>>,
-    #[account()]
-    pub token_mint: Box<Account<'info, Mint>>,
-    #[account(
-        init_if_needed,
-        payer = user,
-        token::mint = token_mint,
-        token::authority = user,
-        // seeds = [b"limit_order_token_account",
-        //          pool.key().as_ref(),
-        //          custody_token_mint.key().as_ref()],
-        // bump
-        // associated_token::mint = token_a_mint,
-        // associated_token::authority = swap_account
-    )]
-    pub owner_token_vault: Box<Account<'info, TokenAccount>>,
-    // pub associated_token_program: Program<'info, AssociatedToken>,
-    #[account(
-        init_if_needed,
-        payer = user,
-        token::mint = token_mint,
-        token::authority = pda_account,
-        // seeds = [b"pda_token_account",
-        //          pda_account.key().as_ref(),
-        //          token_mint.key().as_ref()],
-        // bump
-    )]
-    pub pda_token_vault: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
-    system_program: Program<'info, System>,
-}
-
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
 pub enum Side {
     None,
@@ -198,15 +99,11 @@ pub struct ProcessMarketOrder<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
 
-    #[account()]
-    /// CHECK: non signer user account for Accountinfo in CPI
-    pub user: UncheckedAccount<'info>,
-
     #[account(
         mut,
         // has_one = user,
-        // seeds = [b"PdaAccount".as_ref(), user.key().as_ref()],
-        // bump = pda_account.bump,
+        seeds = [b"PdaDirect1".as_ref()],
+        bump = 255,
     )]
     /// CHECK: sdssds
     pub pda_account: AccountInfo<'info>,
