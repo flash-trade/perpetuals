@@ -9,9 +9,15 @@ use {
     perpetuals::{
         self,
         cpi::accounts::OpenPosition,
-        instructions::OpenPositionParams,
+        // instructions::OpenPositionParams,
         // perpetuals::{open_position},
-        state::{custody::Custody, perpetuals::Perpetuals, pool::Pool, position::Position},
+        state::{
+            custody::Custody,
+            perpetuals::Perpetuals,
+            pool::Pool,
+            position::Position,
+            // position::Side,
+        },
     },
 };
 // use flash::
@@ -22,13 +28,15 @@ use {
 declare_id!("41Af5KuLs3fQobV1Pn4q39LGw3aDwY9SWQ4Sj5rB4ZjE");
 
 #[program]
-mod puppet {
+mod limit_order_cpi {
 
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let pda_account = &mut ctx.accounts.pda_account; //todo: check if we have to specify "mut" in #account
         pda_account.is_initialized = true;
+        // let pda_account = ctx.accounts.pda_account.as_mut();
+        // let bump = pda_account.bump;
         msg!("Account Initialized");
         Ok(())
     }
@@ -55,19 +63,28 @@ mod puppet {
         ctx: Context<ProcessMarketOrder>,
         params: OpenPositionParams,
     ) -> Result<()> {
-        msg!("Check CPI ");
+        msg!("Check CPI 1 ");
 
-        let pda_account = ctx.accounts.pda_account.as_mut();
-        let bump = pda_account.bump;
+        // let pda_account = ctx.accounts.pda_account.as_mut();
+        // let bump = pda_account.bump;
 
-        let authority_seeds: &[&[&[u8]]] = &[&[b"PdaAccount", pda_account.owner.as_ref(), &[bump]]];
+        let x = Pubkey::find_program_address(
+            &["PdaAccount".as_ref(), ctx.accounts.user.key.as_ref()],
+            &limit_order_cpi::id(),
+        );
+        let bump = x.1;
+        msg!("Check CPI 2.1 {:?}", bump);
+
+        let authority_seeds: &[&[&[u8]]] =
+            &[&[b"PdaAccount", ctx.accounts.user.key.as_ref(), &[bump]]];
 
         let cpi_program = ctx.accounts.flash_program.to_account_info();
 
         // drop(pda_account);
+        msg!("Check CPI 2");
 
         let cpi_accounts = OpenPosition {
-            owner: pda_account.to_account_info(),
+            owner: ctx.accounts.pda_account.to_account_info(),
             funding_account: ctx.accounts.pda_token_vault.to_account_info(),
             transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
             perpetuals: ctx.accounts.perpetuals.to_account_info(),
@@ -82,7 +99,15 @@ mod puppet {
 
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts).with_signer(authority_seeds);
 
-        perpetuals::cpi::open_position(cpi_ctx, params)?;
+        perpetuals::cpi::open_position(
+            cpi_ctx,
+            perpetuals::instructions::OpenPositionParams {
+                price: params.price,
+                collateral: params.collateral,
+                size: params.size,
+                side: perpetuals::state::position::Side::Long,
+            },
+        )?;
 
         Ok(())
     }
@@ -143,14 +168,28 @@ pub struct Deposit<'info> {
         payer = user,
         token::mint = token_mint,
         token::authority = pda_account,
-        seeds = [b"limit_order_token_account",
-                 user.key().as_ref(),
-                 token_mint.key().as_ref()],
-        bump
+        // seeds = [b"pda_token_account",
+        //          pda_account.key().as_ref(),
+        //          token_mint.key().as_ref()],
+        // bump
     )]
     pub pda_token_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
     system_program: Program<'info, System>,
+}
+
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
+pub enum Side {
+    None,
+    Long,
+    Short,
+}
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct OpenPositionParams {
+    pub price: u64,
+    pub collateral: u64,
+    pub size: u64,
+    pub side: Side,
 }
 
 #[derive(Accounts)]
@@ -166,10 +205,11 @@ pub struct ProcessMarketOrder<'info> {
     #[account(
         mut,
         // has_one = user,
-        seeds = [b"PdaAccount".as_ref()],
-        bump = pda_account.bump,
+        // seeds = [b"PdaAccount".as_ref(), user.key().as_ref()],
+        // bump = pda_account.bump,
     )]
-    pub pda_account: Box<Account<'info, UserLimitOrderPdaData>>,
+    /// CHECK: sdssds
+    pub pda_account: AccountInfo<'info>,
 
     // from open_position CPI
     // #[account(
@@ -181,70 +221,68 @@ pub struct ProcessMarketOrder<'info> {
     // here it is limit_order_token_Acc
     #[account(
         mut,
-        constraint = pda_token_vault.mint == custody.mint,
+        // constraint = pda_token_vault.mint == custody.mint,
         // has_one = pda_account
     )]
-    pub pda_token_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: sds
+    pub pda_token_vault: AccountInfo<'info>,
 
     /// CHECK: empty PDA, authority for token accounts
-    #[account(
-        seeds = [b"transfer_authority"],
-        bump = perpetuals.transfer_authority_bump
-    )]
+    #[account()]
     pub transfer_authority: AccountInfo<'info>,
 
-    #[account(
-        seeds = [b"perpetuals"],
-        bump = perpetuals.perpetuals_bump
-    )]
-    pub perpetuals: Box<Account<'info, Perpetuals>>,
+    /// CHECK: oracle
+    #[account()]
+    pub perpetuals: AccountInfo<'info>,
 
-    #[account(
-        mut,
-        seeds = [b"pool",
-                 pool.name.as_bytes()],
-        bump = pool.bump
-    )]
-    pub pool: Box<Account<'info, Pool>>,
+    /// CHECK: empty PDA, authority for token accounts
+    #[account(mut)]
+    pub pool: AccountInfo<'info>,
 
-    #[account(
-        init,
-        payer = keeper,
-        space = Position::LEN,
-        seeds = [b"position",
-                pda_account.owner.key().as_ref(),
-                 pool.key().as_ref(),
-                 custody.key().as_ref(),
-                 &[params.side as u8]],
-        bump
-    )]
-    pub position: Box<Account<'info, Position>>,
+    // #[account(
+    //     init,
+    //     payer = keeper,
+    //     space = Position::LEN,
+    //     seeds = [b"position",
+    //             pda_account.owner.key().as_ref(),
+    //              pool.key().as_ref(),
+    //              custody.key().as_ref(),
+    //              &[params.side as u8]],
+    //     bump
+    // )]
+    /// CHECK: oracle
+    #[account(mut)]
+    pub position: AccountInfo<'info>,
 
-    #[account(
-        mut,
-        seeds = [b"custody",
-                 pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.bump
-    )]
-    pub custody: Box<Account<'info, Custody>>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"custody",
+    //              pool.key().as_ref(),
+    //              custody.mint.as_ref()],
+    //     bump = custody.bump
+    // )]
+    /// CHECK: oracle
+    #[account(mut)]
+    pub custody: AccountInfo<'info>,
 
     /// CHECK: oracle account for the collateral token
     #[account(
-        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
+        // constraint = custody_oracle_account.key() == custody.oracle.oracle_account
     )]
     pub custody_oracle_account: AccountInfo<'info>,
 
-    #[account(
-        mut,
-        seeds = [b"custody_token_account",
-                 pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.token_account_bump
-    )]
-    pub custody_token_account: Box<Account<'info, TokenAccount>>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"custody_token_account",
+    //              pool.key().as_ref(),
+    //              custody.mint.as_ref()],
+    //     bump = custody.token_account_bump
+    // )]
+    /// CHECK: ora
+    #[account(mut)]
+    pub custody_token_account: AccountInfo<'info>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
-    flash_program: Program<'info, Token>,
+    flash_program: Program<'info, Perpetuals>,
 }

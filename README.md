@@ -67,6 +67,8 @@ To deploy the program to the devnet and upload the IDL use the following command
 ```sh
 anchor deploy --provider.cluster devnet --program-keypair <PROG_ID_JSON>
 anchor idl init --provider.cluster devnet --filepath ./target/idl/perpetuals.json
+anchor idl init --provider.cluster devnet --filepath ./target/idl/limit_order_cpi.json
+
 <PROGRAM ID>
 ```
 
