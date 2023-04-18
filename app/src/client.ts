@@ -486,7 +486,7 @@ export class PerpetualsClient {
       .rpc()
       .catch((err) => {
         console.error(err);
-        throw err;
+        // throw err;
       });
       console.log("trx_id:", `https://explorer.solana.com/tx/${trx_id}?cluster=devnet`)
   };

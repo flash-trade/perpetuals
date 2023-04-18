@@ -4,7 +4,7 @@ seeds = false
 # [programs.localnet]
 # perpetuals = "FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD"
 [programs.devnet]
-perpetuals = "FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD"
+perpetuals = "f1avUCGxFGLbUTA8L64rMpRKw5KH6LxkTjGEzhWhAEo"
 
 [registry]
 url = "https://anchor.projectserum.com"

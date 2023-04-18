@@ -9,9 +9,9 @@
     {
       "programId": "f1avUCGxFGLbUTA8L64rMpRKw5KH6LxkTjGEzhWhAEo",
       "cluster": "devnet",
-      "poolName": "F1aPool",
-      "poolAddress": "Gy394vbwZ53AQvEJ9ePzEc8nX3b49fVMtyDGVnexztfL",
-      "lpTokenMint": "6wkQZbTKvHL6jox5ipVLMjYxzu5pHciiMCj6yJyUYQoS",
+      "poolName": "F1aPool3",
+      "poolAddress": "EjrNsViX2JYLjcHhCjMUdn77SVMAps69N3gNyKTpTLfh",
+      "lpTokenMint": "CPUj8x9PVyLi1CuEY5CdxBgwZsq9wZkeMdgknBnbNpHq",
       "lpDecimals": 6,
       "perpetuals": "GKXKKi5bj9P2LsCBqFSKwhKfRM7MJrA4qyEMGXzNQcTz",
       "transferAuthority" : "xeizPZDpXPDfu939cxNS27AoAkgw7fJKY4gxbK8khFA",
@@ -48,8 +48,8 @@
       ],
       "custodies": [
         {
-          "custodyAccount": "FTNCDZ8Ex2ecBt9oBCHzQK31avD2oR6YuMzVH1m9ikbs",
-          "tokenAccount": "Ca4fZ5URHpCEaq5rq8TEutiNZTXByGX52PtxrtHSpLpu",
+          "custodyAccount": "5n8Ga254uA4fy2UdCWwjHUvrRHGc3WwmmNsvjpbQYgwE",
+          "tokenAccount": "Ga1xofAe2EP3T2KTwL7KPEri9JGTwMTBwgrNmnchrGAg",
           "symbol": "USDC",
           "mintKey": "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr",
           "decimals": 6,
@@ -57,8 +57,8 @@
           "oracleAddress": "5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7"
         },
         {
-          "custodyAccount": "2xMuRLDktxHJ2kr4fRwQuRM1QcvbFWvyxeoRwu5Y6e5F",
-          "tokenAccount": "AMGSRJF6eHCuHDvMVEty69gAki84RoZYG1hCpyAihYE8",
+          "custodyAccount": "8NpLh7UknY7p43432ETcWZQYp8QK81tesxNqisDmnMNU",
+          "tokenAccount": "FDMmwmeQrZ6xWTdxXA2MZhZ9uggLgvwfKaW366WH2UAM",
           "symbol": "SOL",
           "mintKey": "So11111111111111111111111111111111111111112",
           "decimals": 9,
@@ -66,8 +66,8 @@
           "oracleAddress": "J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix"
         },
         {
-          "custodyAccount": "4DY3XgotssCKamdX8QX6g4XBX4WSE68C1Stuoz5kSw5E",
-          "tokenAccount": "8sQQcdpvjYJ57qHTx24FLjZLG5C8RZMGWLwjjSDJHW49",
+          "custodyAccount": "BUkVeJxhkQMGJbibjTJUCG8afdudSpm5j2GpnyYrawQA",
+          "tokenAccount": "CrCSQpkug4uQCWiqET9AL4sXeBudy7t4RPZ5UPV1xti6",
           "symbol": "BTC",
           "mintKey": "B8DYqbh57aEPRbUq7reyueY6jaYoN75js5YsiM84tFfP",
           "decimals": 6,
@@ -75,8 +75,8 @@
           "oracleAddress": "HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J"
         },
         {
-          "custodyAccount": "CVFMoHFtrAsvgB9BsCot12dYiyeTZHtGMxQfiiXdFKxL",
-          "tokenAccount": "4zUkoLunaoBjrez8EuTeR1vfKdW1wJTsb3hVQhaLnDN2",
+          "custodyAccount": "Hq1JffLuvj8XjBuL552aCFJkgoNWyMLfvQ2wUaNSX8yC",
+          "tokenAccount": "D8kDJSWVuMm9oERTJGwUHwLg34TtigYgSbCBAQ5LGvDd",
           "symbol": "ETH",
           "mintKey": "BA17bkYW78GvnirtgRHcceQxZdwkhpzbvrwDU6voUXRz",
           "decimals": 6,

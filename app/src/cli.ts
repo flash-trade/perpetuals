@@ -118,7 +118,7 @@ async function addCustody(
 
   let pool = await client.getPool(poolName);
   pool.ratios.push({
-    target: new BN(5000),
+    target: new BN(4500),
     min: new BN(10),
     max: new BN(10000),
   });
@@ -127,7 +127,7 @@ async function addCustody(
   client.addCustody(
     poolName,
     tokenMint,
-    isStable,
+    false,
     oracleConfig,
     pricingConfig,
     permissions,
@@ -480,7 +480,7 @@ async function getAum(poolName: string) {
         poolName,
         new PublicKey(tokenMint),
         new PublicKey(tokenOracle),
-        options.stablecoin
+        false
       );
     });
 
@@ -492,11 +492,12 @@ async function getAum(poolName: string) {
     .argument("<pubkey>", "Token oracle account")
     .option("-s, --stablecoin", "Custody is for a stablecoin")
     .action(async (poolName, tokenMint, tokenOracle, options) => {
+      console.log('options.stablecoin :>> ', options.stablecoin);
       await editCustody(
         poolName,
         new PublicKey(tokenMint),
         new PublicKey(tokenOracle),
-        options.stablecoin
+        false
       );
     });
 

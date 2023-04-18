@@ -24,7 +24,7 @@ solana_security_txt::security_txt! {
     auditors: ""
 }
 
-declare_id!("FastuHRd9PRiuKGy2dHgH4zcSRjARKnPcHiQZnxpR5fD");
+declare_id!("f1avUCGxFGLbUTA8L64rMpRKw5KH6LxkTjGEzhWhAEo");
 // declare_id!("PERP38nWNVRkULEKeNHyEyAwuQor2u6EnXZn3cMZCwS");
 
 #[program]

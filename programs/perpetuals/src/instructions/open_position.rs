@@ -100,6 +100,18 @@ pub struct OpenPositionParams {
     pub side: Side,
 }
 
+#[event]
+pub struct OpenPositionLog {
+    pub postion: Pubkey,
+    pub owner: Pubkey,
+    // pub custody: Pubkey,
+    pub token_id: usize, // custody_id
+    pub price: u64,
+    pub collateral: u64,
+    pub size: u64,
+    pub side: Side,
+}
+
 pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) -> Result<()> {
     // check permissions
     msg!("Check permissions");
@@ -120,7 +132,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     }
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
-
+    let token_id = pool.get_token_id(&custody.key())?;
     // compute position price
     let curtime = perpetuals.get_time()?;
 
@@ -253,6 +265,16 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     custody.add_position(position, &token_ema_price, curtime)?;
     custody.update_borrow_rate(curtime)?;
+
+    emit!(OpenPositionLog {
+        postion: position.key(),
+        owner: position.owner.key(),
+        token_id,
+        price: position.price,
+        collateral: position.collateral_usd,
+        size: position.size_usd,
+        side: params.side
+    });
 
     Ok(())
 }
