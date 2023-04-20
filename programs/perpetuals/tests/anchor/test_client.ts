@@ -1,5 +1,5 @@
 import * as anchor from "@project-serum/anchor";
-import { Perpetuals } from "../target/types/perpetuals";
+import { Perpetuals } from "../../../../target/types/perpetuals";
 import {
   PublicKey,
   Keypair,
@@ -53,7 +53,7 @@ export class TestClient {
   constructor() {
     this.provider = anchor.AnchorProvider.env();
     anchor.setProvider(this.provider);
-    this.program = anchor.workspace.Perpetuals as Program<Perpetuals>;
+    this.program = anchor.workspace.Perpetuals as anchor.Program<Perpetuals>;
     this.printErrors = true;
 
     anchor.BN.prototype.toJSON = function () {
