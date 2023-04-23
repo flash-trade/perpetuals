@@ -1927,6 +1927,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "limit_order"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "bincode",
+ "bonfida-test-utils",
+ "num 0.4.0",
+ "num-traits",
+ "perpetuals",
+ "solana-program",
+ "solana-program-test",
+ "solana-sdk",
+ "solana-security-txt",
+ "tokio",
+]
+
+[[package]]
 name = "link-cplusplus"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
