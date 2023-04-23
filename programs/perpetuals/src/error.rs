@@ -54,4 +54,6 @@ pub enum PerpetualsError {
     InstructionNotAllowed,
     #[msg("Token utilization limit exceeded")]
     MaxUtilization,
+    #[msg("Invalid owner or keeper address")]
+    InvalidOwnerOrKeeper,
 }

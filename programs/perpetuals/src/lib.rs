@@ -84,6 +84,13 @@ pub mod perpetuals {
         instructions::set_permissions(ctx, &params)
     }
 
+    pub fn set_keeper<'info>(
+        ctx: Context<'_, '_, '_, 'info, SetKeeper<'info>>,
+        params: SetKeeperParams,
+    ) -> Result<u8> {
+        instructions::set_keeper(ctx, &params)
+    }
+
     pub fn withdraw_fees<'info>(
         ctx: Context<'_, '_, '_, 'info, WithdrawFees<'info>>,
         params: WithdrawFeesParams,

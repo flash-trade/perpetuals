@@ -18,8 +18,16 @@ use {
 
 #[derive(Accounts)]
 pub struct ClosePosition<'info> {
+    /// CHECK: owner
     #[account(mut)]
-    pub owner: Signer<'info>,
+    pub owner: AccountInfo<'info>,
+    /// CHECK: owner
+    #[account(mut)]
+    pub keeper: AccountInfo<'info>,
+    #[account(mut,
+        constraint = signer.key() == owner.key() || (signer.key() == keeper.key() && perpetuals.keeper == keeper.key()) @ PerpetualsError::InvalidOwnerOrKeeper
+    )]
+    pub signer: Signer<'info>,
 
     #[account(
         mut,

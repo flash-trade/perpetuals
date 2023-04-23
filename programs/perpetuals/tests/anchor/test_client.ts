@@ -252,7 +252,7 @@ export class TestClient {
         lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
         signature: txSignature,
       },
-      { commitment: "processed" }
+      "processed"
     );
   };
 
@@ -361,7 +361,7 @@ export class TestClient {
       throw err;
     }
   };
-
+  
   setAdminSigners = async (minSignatures: number) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
@@ -601,7 +601,7 @@ export class TestClient {
     }
   };
 
-  withdrawFees = async (amount: typeof BN, custody, receivingTokenAccount) => {
+  withdrawFees = async (amount: anchor.BN, custody, receivingTokenAccount) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
@@ -633,7 +633,7 @@ export class TestClient {
     }
   };
 
-  withdrawSolFees = async (amount: typeof BN, custody, receivingAccount) => {
+  withdrawSolFees = async (amount: anchor.BN, custody, receivingAccount) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
@@ -721,8 +721,8 @@ export class TestClient {
   };
 
   swap = async (
-    amountIn: typeof BN,
-    minAmountOut: typeof BN,
+    amountIn: anchor.BN,
+    minAmountOut: anchor.BN,
     user,
     fundingAccount: PublicKey,
     receivingAccount: PublicKey,
@@ -761,8 +761,8 @@ export class TestClient {
   };
 
   addLiquidity = async (
-    amountIn: typeof BN,
-    minLpAmountOut: typeof BN,
+    amountIn: anchor.BN,
+    minLpAmountOut: anchor.BN,
     user,
     fundingAccount: PublicKey,
     custody
@@ -798,8 +798,8 @@ export class TestClient {
   };
 
   removeLiquidity = async (
-    lpAmountIn: typeof BN,
-    minAmountOut: typeof BN,
+    lpAmountIn: anchor.BN,
+    minAmountOut: anchor.BN,
     user,
     receivingAccount: PublicKey,
     custody
@@ -836,8 +836,8 @@ export class TestClient {
 
   openPosition = async (
     price: number,
-    collateral: typeof BN,
-    size: typeof BN,
+    collateral: anchor.BN,
+    size: anchor.BN,
     side: PositionSide,
     user,
     fundingAccount: PublicKey,
@@ -876,7 +876,7 @@ export class TestClient {
   };
 
   addCollateral = async (
-    collateral: typeof BN,
+    collateral: anchor.BN,
     user,
     fundingAccount: PublicKey,
     positionAccount: PublicKey,
@@ -910,7 +910,7 @@ export class TestClient {
   };
 
   removeCollateral = async (
-    collateralUsd: typeof BN,
+    collateralUsd: anchor.BN,
     user,
     receivingAccount: PublicKey,
     positionAccount: PublicKey,
@@ -1010,18 +1010,19 @@ export class TestClient {
   };
 
   getEntryPriceAndFee = async (
-    size: typeof BN,
+    collateral: anchor.BN,
+    size: anchor.BN,
     side: PositionSide,
     custody
   ) => {
     try {
       return await this.program.methods
         .getEntryPriceAndFee({
+          collateral,
           size,
           side: side === "long" ? { long: {} } : { short: {} },
         })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           custody: custody.custody,
@@ -1037,7 +1038,7 @@ export class TestClient {
   };
 
   getExitPriceAndFee = async (
-    size: typeof BN,
+    size: anchor.BN,
     positionAccount: PublicKey,
     custody
   ) => {
@@ -1047,7 +1048,6 @@ export class TestClient {
           size,
         })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           position: positionAccount,
@@ -1063,12 +1063,14 @@ export class TestClient {
     }
   };
 
-  getLiquidationPrice = async (positionAccount: PublicKey, custody) => {
+  getLiquidationPrice = async (addCollateral: anchor.BN, removeCollateral: anchor.BN, positionAccount: PublicKey, custody) => {
     try {
       return await this.program.methods
-        .getLiquidationPrice({})
+        .getLiquidationPrice({
+          addCollateral,
+          removeCollateral
+        })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           position: positionAccount,
@@ -1087,19 +1089,16 @@ export class TestClient {
   getSwapAmountAndFee = async (amountIn: number, custodyIn, custodyOut) => {
     try {
       return await this.program.methods
-        .getSwapAmountAndFee({
+        .getSwapAmountAndFees({
           amountIn: new BN(amountIn),
         })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           receivingCustody: custodyIn.custody,
           receivingCustodyOracleAccount: custodyIn.oracleAccount,
-          receivingCustodyTokenAccount: custodyIn.tokenAccount,
           dispensingCustody: custodyOut.custody,
           dispensingCustodyOracleAccount: custodyOut.oracleAccount,
-          dispensingCustodyTokenAccount: custodyOut.tokenAccount,
         })
         .view();
     } catch (err) {

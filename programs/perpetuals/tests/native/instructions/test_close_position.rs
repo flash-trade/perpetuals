@@ -44,7 +44,9 @@ pub async fn test_close_position(
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::ClosePosition {
+            signer: owner.pubkey(),
             owner: owner.pubkey(),
+            keeper: owner.pubkey(),
             receiving_account: receiving_account_address,
             transfer_authority: transfer_authority_pda,
             perpetuals: perpetuals_pda,
