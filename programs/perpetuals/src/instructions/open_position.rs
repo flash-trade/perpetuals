@@ -22,6 +22,8 @@ use {
 pub struct OpenPosition<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
 
     #[account(
         mut,
@@ -53,7 +55,7 @@ pub struct OpenPosition<'info> {
 
     #[account(
         init,
-        payer = owner,
+        payer = payer,
         space = Position::LEN,
         seeds = [b"position",
                  owner.key().as_ref(),

@@ -30,6 +30,7 @@ pub enum AdminInstruction {
     SetAdminSigners,
     SetCustodyConfig,
     SetPermissions,
+    SetKeeper,
     SetBorrowRate,
     WithdrawFees,
     WithdrawSolFees,

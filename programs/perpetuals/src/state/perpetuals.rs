@@ -57,6 +57,7 @@ pub struct Perpetuals {
     pub perpetuals_bump: u8,
     // time of inception, also used as current wall clock time for testing
     pub inception_time: i64,
+    pub keeper: Pubkey,
 }
 
 impl anchor_lang::Id for Perpetuals {

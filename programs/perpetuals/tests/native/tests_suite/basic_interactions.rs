@@ -23,8 +23,9 @@ const PAYER: usize = 5;
 const USER_ALICE: usize = 6;
 const USER_MARTIN: usize = 7;
 const USER_PAUL: usize = 8;
+const KEEPER: usize = 9;
 
-const KEYPAIRS_COUNT: usize = 9;
+const KEYPAIRS_COUNT: usize = 10;
 
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
@@ -62,6 +63,15 @@ pub async fn basic_interactions() {
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
+        multisig_signers,
+    )
+    .await
+    .unwrap();
+    instructions::test_set_keeper(
+        &mut program_test_ctx,
+        &keypairs[MULTISIG_MEMBER_A],
+        &keypairs[PAYER],
+        fixtures::set_keeper_params(keypairs[KEEPER].pubkey()),
         multisig_signers,
     )
     .await

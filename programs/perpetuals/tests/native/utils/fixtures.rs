@@ -3,7 +3,7 @@
 use {
     anchor_lang::prelude::Pubkey,
     perpetuals::{
-        instructions::InitParams,
+        instructions::{InitParams, SetKeeperParams},
         state::{
             custody::{BorrowRateParams, Fees, FeesMode, OracleParams, PricingParams},
             oracle::OracleType,
@@ -90,4 +90,8 @@ pub fn init_params_permissions_full(min_signatures: u8) -> InitParams {
         allow_collateral_withdrawal: true,
         allow_size_change: true,
     }
+}
+
+pub fn set_keeper_params(keeper: Pubkey) -> SetKeeperParams {
+    SetKeeperParams { keeper }
 }
