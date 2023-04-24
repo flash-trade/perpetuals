@@ -15,7 +15,6 @@ use {
         },
         state::{perpetuals::*, position::Side},
     },
-    solana_program::program_error::ProgramError,
 };
 
 #[derive(Accounts)]
@@ -113,12 +112,11 @@ impl<'info> FillOrder<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct FillOrderParams {}
 
-pub fn fill_order(ctx: Context<FillOrder>, params: &FillOrderParams) -> Result<()> {
-    let limit_order = ctx.accounts.limit_order.as_mut();
+pub fn fill_order(ctx: Context<FillOrder>, _params: &FillOrderParams) -> Result<()> {
     let order = ctx.accounts.order.as_mut();
 
     let curtime = ctx.accounts.clock.unix_timestamp;
-    let order_type = order.order_type;
+    // let order_type = order.order_type;
     let order_side = order.side;
     let limit_price = order.limit_price;
     let order_expiry_time = order.expiry_time;
@@ -140,6 +138,8 @@ pub fn fill_order(ctx: Context<FillOrder>, params: &FillOrderParams) -> Result<(
     //update limit_order
     ctx.accounts.limit_order.num_active_order =
         math::checked_sub(ctx.accounts.limit_order.num_active_order, 1u64)?;
+    // update total amount
+    // todo: write code to remove collateral from total_amounts_data of limi_order
 
     perpetuals::cpi::close_position(
         ctx.accounts.to_close_position_context(),

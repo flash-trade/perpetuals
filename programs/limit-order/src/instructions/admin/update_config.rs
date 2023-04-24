@@ -1,10 +1,8 @@
 //! UpdateConfig instruction handler
 
 use {
-    crate::{constant::*, error::LimitOrderError, state::limit_order::*},
+    crate::{constant::*, state::limit_order::*},
     anchor_lang::prelude::*,
-    anchor_spl::token::Token,
-    solana_program::program_error::ProgramError,
 };
 
 #[derive(Accounts)]

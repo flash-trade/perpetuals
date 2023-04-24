@@ -1,7 +1,4 @@
-use {
-    anchor_lang::prelude::*,
-    anchor_spl::token::{Burn, MintTo, Transfer},
-};
+use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Default, Debug)]
 pub struct TotalAmount {

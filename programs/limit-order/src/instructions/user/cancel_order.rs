@@ -3,14 +3,12 @@
 use {
     crate::{
         constant::*,
-        error::LimitOrderError,
         math,
         state::{limit_order::*, order::*},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
     perpetuals::{instructions::close_position::ClosePositionParams, state::perpetuals::*},
-    solana_program::program_error::ProgramError,
 };
 
 #[derive(Accounts)]
@@ -97,10 +95,11 @@ pub struct CancelOrderParams {
 }
 
 pub fn cancel_order(ctx: Context<CancelOrder>, params: &CancelOrderParams) -> Result<()> {
-    let limit_order = ctx.accounts.limit_order.as_mut();
     //update limit_order
     ctx.accounts.limit_order.num_active_order =
         math::checked_sub(ctx.accounts.limit_order.num_active_order, 1u64)?;
+    // update total amount
+    // todo: write code to remove collateral from total_amounts_data of limi_order
 
     perpetuals::cpi::close_position(
         ctx.accounts.to_close_position_context(),

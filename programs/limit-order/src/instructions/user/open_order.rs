@@ -3,7 +3,6 @@
 use {
     crate::{
         constant::*,
-        error::LimitOrderError,
         math,
         state::{limit_order::*, order::*},
     },
@@ -13,7 +12,6 @@ use {
         instructions::open_position::OpenPositionParams,
         state::{perpetuals::*, position::Side},
     },
-    solana_program::program_error::ProgramError,
 };
 
 #[derive(Accounts)]
@@ -129,9 +127,12 @@ pub fn open_order(ctx: Context<OpenOrder>, params: &OpenOrderParams) -> Result<(
     ctx.accounts.order.expiry_time = ctx.accounts.clock.unix_timestamp + params.expiry_period;
     ctx.accounts.order.order_type = params.order_type;
 
-    //update limit_order
+    //update num_active_order of limit_order
     ctx.accounts.limit_order.num_active_order =
         math::checked_add(ctx.accounts.limit_order.num_active_order, 1u64)?;
+
+    // update total amount
+    // todo: write code to add collateral to total_amounts_data of limi_order
 
     //pay keeper fee (execution fee)
     LimitOrder::transfer_sol(

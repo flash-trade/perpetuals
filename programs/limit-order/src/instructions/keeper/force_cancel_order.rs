@@ -13,9 +13,8 @@ use {
         instructions::{
             close_position::ClosePositionParams, get_exit_price_and_fee::GetExitPriceAndFeeParams,
         },
-        state::{perpetuals::*, position::Side},
+        state::perpetuals::*,
     },
-    solana_program::program_error::ProgramError,
 };
 
 #[derive(Accounts)]
@@ -115,17 +114,16 @@ pub struct ForceCancelOrderParams {}
 
 pub fn force_cancel_order(
     ctx: Context<ForceCancelOrder>,
-    params: &ForceCancelOrderParams,
+    _params: &ForceCancelOrderParams,
 ) -> Result<()> {
-    let limit_order = ctx.accounts.limit_order.as_mut();
     let order = ctx.accounts.order.as_mut();
     ctx.accounts.limit_order.num_active_order =
         math::checked_sub(ctx.accounts.limit_order.num_active_order, 1u64)?;
 
     let curtime = ctx.accounts.clock.unix_timestamp;
-    let order_type = order.order_type;
-    let order_side = order.side;
-    let order_price = order.price;
+    // let order_type = order.order_type;
+    // let order_side = order.side;
+    // let order_price = order.price;
     let order_expiry_time = order.expiry_time;
     let exit_price_and_fee = perpetuals::cpi::get_exit_price_and_fee(
         ctx.accounts.to_get_exit_price_and_fee_context(),
@@ -139,6 +137,9 @@ pub fn force_cancel_order(
     //update limit_order
     ctx.accounts.limit_order.num_active_order =
         math::checked_sub(ctx.accounts.limit_order.num_active_order, 1u64)?;
+
+    // update total amount
+    // todo: write code to remove collateral from total_amounts_data of limi_order
 
     perpetuals::cpi::close_position(
         ctx.accounts.to_close_position_context(),

@@ -1,8 +1,4 @@
-use {
-    crate::{math, state::limit_order::LimitOrder},
-    anchor_lang::prelude::*,
-    perpetuals::state::position::Side,
-};
+use {anchor_lang::prelude::*, perpetuals::state::position::Side};
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
 pub enum Filled {
