@@ -102,7 +102,7 @@ pub fn cancel_order(ctx: Context<CancelOrder>, params: &CancelOrderParams) -> Re
     // todo: write code to remove collateral from total_amounts_data of limi_order
 
     // we can add `remove collateral` before close_position
-    
+
     perpetuals::cpi::close_position(
         ctx.accounts.to_close_position_context(),
         ClosePositionParams {
